@@ -1,3 +1,4 @@
 frames/
 colmap_output/
-models/
+models/sam_l.pt
+colmap/
