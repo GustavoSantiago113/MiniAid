@@ -44,7 +44,7 @@ html{
 
 .description{
     font-size: 1.953vh;
-    line-height: 40px;
+    line-height: 3.906vh;
 }
 
 .info-icon{
@@ -95,6 +95,73 @@ html{
     }
 }
 
+.body-head{
+    display: flex;
+    flex-direction: row;
+    align-items: start;
+    justify-content: start;
+}
+
+.return-button{
+    background-color: var(--buttons-footer);
+    width: 16.736vw;
+    transition: all 0.5s;
+    cursor: pointer;
+    border-radius: 20px;
+    margin-top: 5.078vh;
+    margin-left: 5.764vw;
+    margin-right: 11.111vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3.542vw;
+    font-size: 1.953vh;
+    height: 5.566vh;
+    text-decoration: none;
+    color: var(--text);
+    &:hover {
+        background-color: var(--button-hover_active-item);
+        transform: scale(1.05);
+    }
+}
+
+.return-icon{
+    height: 3.711vh
+}
+
+.body-text{
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    width: 32.708vw;
+    .title{
+        font-size: 6.25vh;
+        margin-top: -3.027vh;
+    }
+    .subtitle{
+        font-size: 3.906vh;
+        margin-top: -6vh;
+    }
+    .description{
+        font-size: 1.953vh;
+        margin-top: -1vh;
+        text-align: center;
+        line-height: 3.125vh;
+    }
+}
+
+.central-button{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 19vh;
+}
+
+.bottom-button{
+
+}
+
 .footer {
     position: fixed;
     left: 0;
@@ -111,6 +178,7 @@ html{
 .footer-text{
     line-height: 2.344vh;
     text-align: center;
+    font-size: 1.563vh
 }
 
 .footer-icon-link{

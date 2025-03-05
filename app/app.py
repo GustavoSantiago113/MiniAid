@@ -8,7 +8,11 @@ def landing_page():
 
 @app.route("/pre-painting")
 def pre_painting_page():
-    return "Pre-painting"
+    return render_template('PrePainting.html')
+
+@app.route("/pre-painting-crop")
+def pre_painting_page_crop():
+    return render_template('PrePaintingCrop.html')
 
 @app.route("/post-painting")
 def post_painting_page():
