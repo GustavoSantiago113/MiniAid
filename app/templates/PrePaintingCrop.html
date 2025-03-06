@@ -4,9 +4,10 @@
         <title>MiniAid</title>
         <link rel="stylesheet" type="text/css" href="../static/styles.css">
         <link rel="icon" type="image/x-icon" href="../static/favico.png">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+        <script src="../static/script.js"></script>
     </head>
     <body>
-        <script src="../static/script.js"></script>
         <div class = "body-head">
             <a class = "return-button" href="/pre-painting">
                 <img src="../static/arrow.png" class="return-icon">
@@ -27,14 +28,14 @@
             </div>
         </div>
         <div class="crop-image">
-            
+            <img id="uploadedImageToCrop" src="{{ url_for('static', filename='uploads/' + filename) }}" alt="Uploaded Image" class = "image-crop">
         </div>
         <div class="bottom-button">
-            <a class = "navigation-button" href="/pre-painting-paint">
+            <div class = "navigation-button" href="/pre-painting-paint" id="cropButton">
                 <h4>
                     Next
                 </h4>
-            </a>
+            </div>
         </div>
     </body>
     <footer>
@@ -50,4 +51,19 @@
             </a>
         </div>
     </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script>
+        // Initialize Cropper.js
+        const image = document.getElementById('uploadedImageToCrop');
+        const cropper = new Cropper(image, {
+            aspectRatio: NaN, // Free aspect ratio
+            viewMode: 1, // Restrict the crop box to the size of the image
+            autoCropArea: 1, // Automatically set the crop area to the entire image
+        });
+
+        // Handle crop button click
+        document.getElementById('cropButton').addEventListener('click', () => {
+            sendCroppedImage(cropper, "{{ filename }}")
+        });
+    </script>
 </html>

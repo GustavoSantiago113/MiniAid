@@ -4,11 +4,10 @@
         <title>MiniAid</title>
         <link rel="stylesheet" type="text/css" href="../static/styles.css">
         <link rel="icon" type="image/x-icon" href="../static/favico.png">
-        <script src="../static/script.js"></script>
     </head>
     <body>
         <div class = "body-head">
-            <a class = "return-button" href="/">
+            <a class = "return-button" href="{{ url_for('pre_painting_page_crop', filename=originalFileName) }}">
                 <img src="../static/arrow.png" class="return-icon">
                 <h4>
                     Return
@@ -21,21 +20,13 @@
                 <span class="subtitle">
                     Pre-Painting
                 </span>
-                <span class = "description">
-                    Transform an image into sketch and select the colors to paint each part!
-                </span>
             </div>
-            
         </div>
-        <div class="central-button">
-            <form id="uploadFormImage">
-                <input type="file" id="drawImageInput" name="file" accept="image/*" style="display: none;" required>
-                <div class="action-button" onclick="document.getElementById('drawImageInput').click();">
-                    <img src="../static/export.png" class="button-icon">
-                    <h4>Upload the image</h4>
-                </div>
-            </form>
-        </div>
+        {% if croppedFileName %}
+            <img src="{{ url_for('static', filename='uploads/' + croppedFileName) }}" alt="Cropped Image">
+        {% else %}
+            <p>No image found.</p>
+        {% endif %}
     </body>
     <footer>
         <div class = "footer">
