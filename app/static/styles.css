@@ -209,6 +209,77 @@ html{
     background-color: var(--buttons-footer) !important;
 }
 
+.colors-sketchedimage{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-around;
+}
+
+.colors{
+    display: flex;
+    align-items: center;
+    gap: 1.319vw;
+}
+
+input[type="text"] {
+    padding: 8px;
+    border: 2px solid red;
+    border-radius: 5px;
+    width: 150px;
+}
+
+input[type="color"] {
+    border: none;
+    width: 3.906vh;
+    height: 3.906vh;
+    border-radius: 50%;
+    padding: 5px;
+}
+
+.add-btn {
+    background-color: red;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+.part-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #222;
+    padding: 5px;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.color-box {
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+}
+
+.part-name {
+    flex-grow: 1;
+}
+
+.edit-btn, .delete-btn {
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+}
+
 .footer {
     position: fixed;
     left: 0;

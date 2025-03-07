@@ -3,6 +3,8 @@ from io import BytesIO
 from flask import Flask, request, redirect, url_for, render_template, jsonify
 import os
 from PIL import Image
+from utils import utils
+import cv2
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
@@ -29,6 +31,7 @@ def upload_image():
 
     # Save the file to the upload folder
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.replace(" ", ""))
+    print(file_path)
     file.save(file_path)
 
     # Return the filename as JSON
@@ -59,7 +62,11 @@ def crop_image():
     # Save the cropped image
     cropped_filename = f"cropped_{filename}"
     cropped_path = os.path.join(app.config['UPLOAD_FOLDER'], cropped_filename)
+
     img.save(cropped_path)
+
+    image = utils.createSketch(cropped_path)
+    cv2.imwrite(cropped_path, image)
 
     # Redirect to the color page with the filename
     return jsonify({

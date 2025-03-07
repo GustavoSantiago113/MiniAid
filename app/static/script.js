@@ -94,5 +94,62 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("drawImageInput").addEventListener("change", function () {
         sendImageToCrop();
     });
+
+    document.getElementById("addButton").addEventListener("click", function () {
+        const partInput = document.getElementById("partInput");
+        const colorPicker = document.getElementById("colorPicker");
+        const partsList = document.getElementById("partsList");
+    
+        const partText = partInput.value.trim();
+        const selectedColor = colorPicker.value;
+    
+        if (partText === "") {
+            alert("Please enter a part name.");
+            return;
+        }
+    
+        // Create container for item
+        const partItem = document.createElement("div");
+        partItem.classList.add("part-item");
+    
+        // Color Box
+        const colorBox = document.createElement("div");
+        colorBox.classList.add("color-box");
+        colorBox.style.backgroundColor = selectedColor;
+    
+        // Part Name
+        const partName = document.createElement("span");
+        partName.textContent = partText;
+        partName.classList.add("part-name");
+    
+        // Edit Button
+        const editButton = document.createElement("button");
+        editButton.classList.add("edit-btn");
+        editButton.innerHTML = "✏️";
+        editButton.addEventListener("click", function () {
+            const newText = prompt("Edit part name:", partText);
+            if (newText !== null && newText.trim() !== "") {
+                partName.textContent = newText;
+            }
+        });
+    
+        // Delete Button
+        const deleteButton = document.createElement("button");
+        deleteButton.classList.add("delete-btn");
+        deleteButton.innerHTML = "🗑️";
+        deleteButton.addEventListener("click", function () {
+            partsList.removeChild(partItem);
+        });
+    
+        // Append elements
+        partItem.appendChild(colorBox);
+        partItem.appendChild(partName);
+        partItem.appendChild(editButton);
+        partItem.appendChild(deleteButton);
+        partsList.appendChild(partItem);
+    
+        // Clear input
+        partInput.value = "";
+    });
     
 });

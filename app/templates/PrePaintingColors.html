@@ -4,6 +4,7 @@
         <title>MiniAid</title>
         <link rel="stylesheet" type="text/css" href="../static/styles.css">
         <link rel="icon" type="image/x-icon" href="../static/favico.png">
+        <script src="../static/script.js"></script>
     </head>
     <body>
         <div class = "body-head">
@@ -22,11 +23,26 @@
                 </span>
             </div>
         </div>
-        {% if croppedFileName %}
-            <img src="{{ url_for('static', filename='uploads/' + croppedFileName) }}" alt="Cropped Image">
-        {% else %}
-            <p>No image found.</p>
-        {% endif %}
+        <div class="colors-sketchedimage">
+            <div class = "colors">
+                <input type="text" id="partInput" placeholder="Part">
+                
+                <input type="color" id="colorPicker" value="#ff0000">
+                
+                <button id="addButton" class="add-btn">+</button>
+
+                <div id="partsList"></div>
+            </div>
+            <div>
+               {% if croppedFileName %}
+                <img src="{{ url_for('static', filename='uploads/' + croppedFileName) }}" alt="Cropped Image" class="image-crop">
+                {% else %}
+                    <p>No image found.</p>
+                {% endif %} 
+            </div>
+            
+        </div>
+        
     </body>
     <footer>
         <div class = "footer">
