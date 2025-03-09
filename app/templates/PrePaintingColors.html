@@ -24,14 +24,18 @@
             </div>
         </div>
         <div class="colors-sketchedimage">
-            <div class = "colors">
-                <input type="text" id="partInput" placeholder="Part">
-                
-                <input type="color" id="colorPicker" value="#ff0000">
-                
-                <button id="addButton" class="add-btn">+</button>
+            <div class = "colors-container">
+                <div class = "colors">
+                    <input type="text" id="partInput" placeholder="Part">
+                    
+                    <input type="color" id="colorPicker" value="#ff0000">
+                    
+                    <button id="addButton" class="add-btn">+</button>
 
-                <div id="partsList"></div>
+                </div>
+                <div class="parts-container">
+                    <div id="partsList"></div>
+                </div>
             </div>
             <div>
                {% if croppedFileName %}
@@ -41,6 +45,14 @@
                 {% endif %} 
             </div>
             
+        </div>
+        <div class="bottom-button">
+            <div class = "navigation-button" href="/pre-painting-paint" id="generatePDF">
+                <img src="../static/PDF.png" class="button-icon">
+                <h4>
+                    Generate PDF
+                </h4>
+            </div>
         </div>
         
     </body>
@@ -57,4 +69,14 @@
             </a>
         </div>
     </footer>
+    <script>
+        document.getElementById("addButton").addEventListener("click", function () {
+            collorPalletMake();
+        });
+
+        document.getElementById('generatePDF').addEventListener('click', () => {
+            generatePDF("{{ croppedFileName }}")
+        });
+
+    </script>
 </html>

@@ -1,10 +1,11 @@
 import base64
 from io import BytesIO
-from flask import Flask, request, redirect, url_for, render_template, jsonify
+from flask import Flask, request, redirect, url_for, render_template, jsonify, send_file
 import os
 from PIL import Image
 from utils import utils
 import cv2
+import io
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
@@ -83,6 +84,22 @@ def pre_painting_page_colors():
     originalFileName = request.args.get('originalFileName')
     
     return render_template('PrePaintingColors.html', croppedFileName=croppedFileName, originalFileName = originalFileName)
+
+@app.route('/export-pdf', methods=['POST'])
+def export_pdf():
+    
+    data = request.get_json()
+    text_color_dict = data.get("textColorDict", {})
+    croppedFilename = data["croppedFilename"]
+    cropped_path = os.path.join(app.config['UPLOAD_FOLDER'], croppedFilename)
+
+    output = io.BytesIO()
+    utils.generate_pdf(cropped_path, text_color_dict, output)
+
+    output.seek(0)
+
+    return send_file(output, as_attachment=True, download_name="color_palette.pdf", mimetype="application/pdf")
+    
 
 @app.route("/post-painting")
 def post_painting_page():
