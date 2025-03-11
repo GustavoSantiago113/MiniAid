@@ -217,6 +217,49 @@ function rgbToHex(rgb) {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
+async function sendVideoToFrames(){
+    const button = document.getElementById("uploadVideo");
+
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
+    
+    try{
+        const fileInput = document.getElementById('videoInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Please select a file.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Send the file to the server
+        await fetch('/uploadVideo', {
+            method: 'POST',
+            body: formData,
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `/post-painting-frames`;        
+            } else {
+                alert(data.error);
+            }
+        }).catch(error => {
+            console.error("Error:", error);
+            alert("Something went wrong.");
+        });
+    } catch(error){
+        alert("An error occurred while uploading the video.");
+    } finally{
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
         button.addEventListener("mouseenter", function() {

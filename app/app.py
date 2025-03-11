@@ -1,16 +1,33 @@
 import base64
 from io import BytesIO
+import shutil
 from flask import Flask, request, redirect, url_for, render_template, jsonify, send_file
 import os
 from PIL import Image
 from utils import utils
 import cv2
 import io
+import atexit
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
+app.config['UPLOAD_FOLDER_FRAMES'] = 'app/static/uploads/frames'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
+
+def cleanup_upload_folder():
+    for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'Failed to delete {file_path}. Reason: {e}')
+
+atexit.register(cleanup_upload_folder)
 
 @app.route("/")
 def landing_page():
@@ -32,7 +49,6 @@ def upload_image():
 
     # Save the file to the upload folder
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.replace(" ", ""))
-    print(file_path)
     file.save(file_path)
 
     # Return the filename as JSON
@@ -99,11 +115,32 @@ def export_pdf():
     output.seek(0)
 
     return send_file(output, as_attachment=True, download_name="color_palette.pdf", mimetype="application/pdf")
-    
 
 @app.route("/post-painting")
 def post_painting_page():
-    return "Post-painting"
+    return render_template("PostPainting.html")
+
+@app.route("/uploadVideo", methods=['POST'])
+def video_to_frame():
+    if 'file' not in request.files:
+        return "No file uploaded", 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return "No file selected", 400
+
+    # Save the file to the upload folder
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.replace(" ", ""))
+    file.save(file_path)
+
+    utils.extract_frames(file_path, app.config['UPLOAD_FOLDER_FRAMES'])
+
+    # Return the filename as JSON
+    return jsonify({'success': True})
+
+@app.route("/post-painting-frames")
+def post_painting_frames():
+    return "Frames"
 
 @app.route("/about")
 def about_page():

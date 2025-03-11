@@ -6,6 +6,8 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
+import os
+import cv2
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -70,3 +72,34 @@ def generate_pdf(image_path, text_color_dict, output):
         text_y -= 20
 
     c.save()
+
+def extract_frames(video_path, output_folder, frame_interval=10):
+    cap = cv2.VideoCapture(video_path)
+    frame_count = 0
+    extracted_count = 0
+    
+    # Get rotation information
+    rotation = int(cap.get(cv2.CAP_PROP_ORIENTATION_META))
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Apply rotation correction based on metadata
+        if rotation == 90:
+            frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+        elif rotation == 180:
+            frame = cv2.rotate(frame, cv2.ROTATE_180)
+        elif rotation == 270:
+            frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        
+        # Save frame
+        if frame_count % frame_interval == 0:
+            frame_filename = os.path.join(output_folder, f"frame_{extracted_count:04d}.jpg")
+            cv2.imwrite(frame_filename, frame)
+            extracted_count += 1
+        
+        frame_count += 1 
+
+    cap.release()
