@@ -16,6 +16,8 @@ html{
     overflow-x: hidden;
 }
 
+/* Landing Page */
+
 .landing-page-body{
     display: flex;
     flex-direction: row;
@@ -94,6 +96,8 @@ html{
         transform:  translateX(0);
     }
 }
+
+/* Pre and Post painting general style */
 
 .body-head{
     display: flex;
@@ -179,6 +183,8 @@ html{
     }
 }
 
+/* Crop Image */
+
 .crop-image{
     width: 52.148vh;
     margin: 3.809vh auto auto auto;
@@ -208,6 +214,8 @@ html{
 .cropper-line {
     background-color: var(--buttons-footer) !important;
 }
+
+/* Select colors for sketch page */
 
 .colors-sketchedimage{
     display: flex;
@@ -274,7 +282,6 @@ input[type="color"] {
     padding-bottom: 10px;
 }
 
-/* Optional: Add a scrollbar style */
 .parts-container::-webkit-scrollbar {
     width: 6px;
 }
@@ -313,6 +320,8 @@ input[type="color"] {
     height: 50vh;
 }
 
+/* Loading spin */
+
 .loader {
     width: 2.344vh;
     height: 2.344vh;
@@ -329,6 +338,85 @@ input[type="color"] {
     100% { transform: rotate(360deg); }
 }
 
+/* Frame Page */
+
+.file-list {
+    width: 32.222vw;
+    border: 5px solid var(--buttons-footer);
+    border-radius: 20px;
+    padding: 10px;
+    background-color: var(--background);
+    margin-left: 6.944vw;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-bottom: 10px;
+}
+
+.file-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 3px;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 5px;
+    background-color: var(--background);
+    border: 1px solid var(--buttons-footer);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    gap: 1.875vw;
+}
+
+.file-item:hover {
+    background-color: var(--footer-icons);
+}
+
+.file-item.active {
+    background-color: var(--button-hover_active-item);
+}
+
+.file-icon {
+    margin-right: 1.528vw;
+    width: 1.736vw;
+}
+
+.preview-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5.859vh;
+}
+
+.image-preview {
+    overflow: hidden;
+    height: 30.957vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--background);
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 7.422vh;
+    align-items: center;
+}
+
+ /* Footer */
 .footer {
     position: fixed;
     left: 0;

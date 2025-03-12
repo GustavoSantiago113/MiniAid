@@ -1,7 +1,7 @@
 import base64
 from io import BytesIO
 import shutil
-from flask import Flask, request, redirect, url_for, render_template, jsonify, send_file
+from flask import Flask, request, render_template, jsonify, send_file
 import os
 from PIL import Image
 from utils import utils
@@ -140,7 +140,12 @@ def video_to_frame():
 
 @app.route("/post-painting-frames")
 def post_painting_frames():
-    return "Frames"
+    frames_path = app.config['UPLOAD_FOLDER_FRAMES']
+    
+    # List all files in the frames directory
+    frames = [f for f in os.listdir(frames_path) if os.path.isfile(os.path.join(frames_path, f))]
+    
+    return render_template('PostPaintingFrames.html', frames=frames)
 
 @app.route("/about")
 def about_page():

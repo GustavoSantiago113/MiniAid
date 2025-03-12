@@ -1,0 +1,91 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>MiniAid</title>
+        <link rel="stylesheet" type="text/css" href="../static/styles.css">
+        <link rel="icon" type="image/x-icon" href="../static/favico.png">
+        <script src="../static/script.js"></script>
+    </head>
+    <body>
+        <div class = "body-head">
+            <a class = "return-button" href="{{ url_for('post_painting_page') }}">
+                <img src="../static/arrow.png" class="return-icon">
+                <h4>
+                    Return
+                </h4>
+            </a>
+            <div class = "body-text">
+                <span class = "title">
+                    MiniAid
+                </span>
+                <span class="subtitle">
+                    Post-Painting
+                </span>
+            </div>
+        </div>
+        <div class="colors-sketchedimage">
+            <div class="file-list">
+                {% for frame in frames %}
+                <div class="file-item" onclick="selectImage('{{ frame }}')">
+                    <img src="../static/image.png" class="footer-icon">
+                    <span>{{ frame }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="preview-section">
+                <div class="image-preview">
+                    <img id="preview-image" src="" alt="Select an image" style="display: none;">
+                    <span id="no-selection-text">Select an image from the list</span>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="action-button">
+                        <img src="../static/segmentation.png" class="button-icon">
+                        Segment Image
+                    </button>
+                    
+                    <button class="action-button">
+                        <img src="../static/sculpture.png" class="button-icon">
+                        Generate 3D Model
+                    </button>
+                </div>
+            </div>
+            
+        </div>
+    </body>
+    <footer>
+        <div class = "footer">
+            <a href="https://github.com/GustavoSantiago113/MiniAid" target = "_blank" class="footer-icon-link">
+                <img src="../static/github.png" class="footer-icon">
+            </a>
+            <span class = "footer-text">
+                Developed by: Gustavo N. Santiago <br> Under the Creative Common NonCommercial License
+            </span>
+            <a href="https://gustavosantiago.shinyapps.io/WebResume/" target = "_blank" class="footer-icon-link">
+                <img src="../static/webResume.png" class="footer-icon">
+            </a>
+        </div>
+    </footer>
+    <script>
+        function selectImage(filename) {
+            // Update the selected file in UI
+            const fileItems = document.querySelectorAll('.file-item');
+            fileItems.forEach(item => {
+                if (item.textContent.trim() === filename) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            
+            // Show the selected image
+            const previewImage = document.getElementById('preview-image');
+            const noSelectionText = document.getElementById('no-selection-text');
+            
+            previewImage.src = `static/uploads/frames/${filename}`;
+            previewImage.style.display = 'block';
+            noSelectionText.style.display = 'none';
+        }
+    </script>
+</html>
