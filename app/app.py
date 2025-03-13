@@ -167,7 +167,7 @@ def segment_image():
     
     # Get the image data
     image_bytes = utils.segmenting_image(coords_list, model, file)
-    
+
     # Return the image as a downloadable file
     return send_file(
         image_bytes,

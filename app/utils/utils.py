@@ -107,30 +107,23 @@ def extract_frames(video_path, output_folder, frame_interval=10):
 
     cap.release()
 
-def segmenting_image(coordinates, model, source, conf=0.2, iou=0.9):
-    
+def segmenting_image(coordinates, model, source):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device)
-    results = model(source,
-                    device=device,
-                    retina_masks=True,
-                    imgsz=640,
-                    conf=conf,
-                    iou=iou,
-                    bboxes=coordinates)
+    results = model(source, device=device, retina_masks=True, imgsz=640, bboxes=coordinates)
     
     for result in results:
         img = np.copy(result.orig_img)
         for ci, c in enumerate(result):
             b_mask = np.zeros(img.shape[:2], np.uint8)
-            # Create contour mask 
+            
+            # Create contour mask
             contour = c.masks.xy.pop().astype(np.int32).reshape(-1, 1, 2)
             cv2.drawContours(b_mask, [contour], -1, (255, 255, 255), cv2.FILLED)
             
             # Create an RGBA image with an alpha channel
             isolated = np.zeros((*img.shape[:2], 4), dtype=np.uint8)
             isolated[..., :3] = img
-            isolated[b_mask == 0, 3] = 0  # Set alpha to 0 for background
+            isolated[b_mask == 0, 3] = 0    # Set alpha to 0 for background
             isolated[b_mask != 0, 3] = 255  # Set alpha to 255 for the segmented object
             
             contour = contour.reshape(-1, 2)
@@ -141,7 +134,7 @@ def segmenting_image(coordinates, model, source, conf=0.2, iou=0.9):
             cropped_image = isolated[y_min:y_max, x_min:x_max]
             
             # Create a square image with 4 channels (RGBA)
-            height, width, _ = cropped_image.shape
+            height, width = cropped_image.shape[:2]
             size = max(height, width)
             square_image = np.zeros((size, size, 4), dtype=np.uint8)
             
@@ -153,8 +146,21 @@ def segmenting_image(coordinates, model, source, conf=0.2, iou=0.9):
             square_image[y_offset:y_offset + height, x_offset:x_offset + width] = cropped_image
             
             # Convert the image to bytes
-            _, buffer = cv2.imencode(".png", square_image)
+            success, buffer = cv2.imencode(".png", square_image)
+            if not success:
+                raise Exception("Failed to encode image")
+                
             image_bytes = io.BytesIO(buffer)
             image_bytes.seek(0)
+
+            undesired_image = os.path.basename(source)
+
+            if os.path.exists(undesired_image):
+                os.remove(undesired_image)
             
             return image_bytes
+    
+    
+    
+    # If no results, return an empty BytesIO object
+    return io.BytesIO()

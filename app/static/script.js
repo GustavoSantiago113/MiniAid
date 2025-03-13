@@ -413,14 +413,23 @@ async function sendImageToSegment(canvas, frame){
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ image_path: frame, coordinates: coordinates }),
+            }).then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                throw new Error('Network response was not ok');
             })
-
-            if(response.ok){
-                alert("Segmented");
-            }
-            else{
-                alert("Something went wrong.");
-            }
+            .then(blob => {
+                // Create a link element to trigger download
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'segmented_image.png';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
             
         } catch(error){
             alert("An error occurred while segmenting the image.");
