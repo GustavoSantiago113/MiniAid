@@ -2,3 +2,4 @@ frames/
 colmap_output/
 models/sam_l.pt
 colmap/
+app/static/models/sam_l.pt

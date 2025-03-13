@@ -1,3 +1,4 @@
+import io
 import numpy as np
 import scipy.ndimage
 import imageio
@@ -8,6 +9,7 @@ from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
 import os
 import cv2
+import torch
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -74,6 +76,7 @@ def generate_pdf(image_path, text_color_dict, output):
     c.save()
 
 def extract_frames(video_path, output_folder, frame_interval=10):
+
     cap = cv2.VideoCapture(video_path)
     frame_count = 0
     extracted_count = 0
@@ -103,3 +106,55 @@ def extract_frames(video_path, output_folder, frame_interval=10):
         frame_count += 1 
 
     cap.release()
+
+def segmenting_image(coordinates, model, source, conf=0.2, iou=0.9):
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(device)
+    results = model(source,
+                    device=device,
+                    retina_masks=True,
+                    imgsz=640,
+                    conf=conf,
+                    iou=iou,
+                    bboxes=coordinates)
+    
+    for result in results:
+        img = np.copy(result.orig_img)
+        for ci, c in enumerate(result):
+            b_mask = np.zeros(img.shape[:2], np.uint8)
+            # Create contour mask 
+            contour = c.masks.xy.pop().astype(np.int32).reshape(-1, 1, 2)
+            cv2.drawContours(b_mask, [contour], -1, (255, 255, 255), cv2.FILLED)
+            
+            # Create an RGBA image with an alpha channel
+            isolated = np.zeros((*img.shape[:2], 4), dtype=np.uint8)
+            isolated[..., :3] = img
+            isolated[b_mask == 0, 3] = 0  # Set alpha to 0 for background
+            isolated[b_mask != 0, 3] = 255  # Set alpha to 255 for the segmented object
+            
+            contour = contour.reshape(-1, 2)
+            x_min, y_min = np.min(contour, axis=0)
+            x_max, y_max = np.max(contour, axis=0)
+            
+            # Crop the image to get only the segmented object
+            cropped_image = isolated[y_min:y_max, x_min:x_max]
+            
+            # Create a square image with 4 channels (RGBA)
+            height, width, _ = cropped_image.shape
+            size = max(height, width)
+            square_image = np.zeros((size, size, 4), dtype=np.uint8)
+            
+            # Calculate the top-left corner to centralize the image
+            y_offset = (size - height) // 2
+            x_offset = (size - width) // 2
+            
+            # Copy the cropped image into the square image
+            square_image[y_offset:y_offset + height, x_offset:x_offset + width] = cropped_image
+            
+            # Convert the image to bytes
+            _, buffer = cv2.imencode(".png", square_image)
+            image_bytes = io.BytesIO(buffer)
+            image_bytes.seek(0)
+            
+            return image_bytes

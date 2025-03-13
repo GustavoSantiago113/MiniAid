@@ -8,13 +8,18 @@ from utils import utils
 import cv2
 import io
 import atexit
+from ultralytics import SAM
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
 app.config['UPLOAD_FOLDER_FRAMES'] = 'app/static/uploads/frames'
+app.config['MODELS'] = 'app/static/models'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
+os.makedirs(app.config['MODELS'], exist_ok=True)
+
+model = SAM(os.path.join(app.config['MODELS'], "sam_l.pt"))
 
 def cleanup_upload_folder():
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -146,6 +151,30 @@ def post_painting_frames():
     frames = [f for f in os.listdir(frames_path) if os.path.isfile(os.path.join(frames_path, f))]
     
     return render_template('PostPaintingFrames.html', frames=frames)
+
+@app.route("/segment-image", methods=['POST'])
+def segment_image():
+
+    data = request.json
+    file = data['image_path']
+    coords_dict = data['coordinates']
+    coords_list = [
+        int(round(coords_dict['x_min'])),  # x_min
+        int(round(coords_dict['y_min'])),  # y_min
+        int(round(coords_dict['x_max'])),  # x_max
+        int(round(coords_dict['y_max']))   # y_max
+    ]
+    
+    # Get the image data
+    image_bytes = utils.segmenting_image(coords_list, model, file)
+    
+    # Return the image as a downloadable file
+    return send_file(
+        image_bytes,
+        mimetype='image/png',
+        as_attachment=True,
+        download_name='segmented_image.png'
+    )
 
 @app.route("/about")
 def about_page():

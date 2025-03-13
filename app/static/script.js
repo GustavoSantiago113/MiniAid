@@ -260,6 +260,181 @@ async function sendVideoToFrames(){
 
 }
 
+async function selectImage(filename, previewImage) {
+    // Update the selected file in UI
+    const fileItems = document.querySelectorAll('.file-item');
+    fileItems.forEach(item => {
+        if (item.textContent.trim() === filename) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+    
+    // Show the selected image
+    
+    const noSelectionText = document.getElementById('no-selection-text');
+    
+    previewImage.src = `static/uploads/frames/${filename}`;
+    previewImage.style.display = 'block';
+    noSelectionText.style.display = 'none';
+}
+
+async function openSegmentationModal(imageSrc, canvas) {
+    const modal = document.getElementById("segmentationModal");
+    const modalImage = document.getElementById("modalImage");
+    const ctx = canvas.getContext("2d");
+
+    // Load the image into the modal
+    modalImage.src = imageSrc;
+
+    modal.style.display = "flex";
+
+    // Wait for the image to load
+    modalImage.onload = () => {
+        setTimeout(() => {
+
+            // Get the original dimensions of the image
+            originalWidth = modalImage.naturalWidth;
+            originalHeight = modalImage.naturalHeight;
+
+            // Get the resized dimensions of the image
+            const resizedWidth = modalImage.clientWidth;
+            const resizedHeight = modalImage.clientHeight;
+
+            // Set canvas dimensions to match the resized image
+            canvas.width = resizedWidth;
+            canvas.height = resizedHeight;
+
+            // Position the canvas exactly over the image
+            canvas.style.width = `${resizedWidth}px`;
+            canvas.style.height = `${resizedHeight}px`;
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Initialize drawing functionality
+            initializeCanvasDrawing(canvas, ctx);
+        }, 50);
+    };
+
+    // Get Rectangle Coordinates
+    document.getElementById("sendToSegment").addEventListener("click", function() {
+        sendImageToSegment(canvas, imageSrc);
+    });
+
+    // Close Modal
+    document.querySelector(".close").addEventListener("click", function() {
+        document.getElementById("segmentationModal").style.display = "none";
+    });
+
+}
+
+let startX, startY, endX, endY;
+let originalWidth, originalHeight;
+
+function initializeCanvasDrawing(canvas, ctx) {
+    let isDrawing = false;
+
+    // Start drawing
+    canvas.addEventListener("mousedown", (e) => {
+        isDrawing = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+    });
+
+    // Draw rectangle
+    canvas.addEventListener("mousemove", (e) => {
+        if (!isDrawing) return;
+
+        endX = e.offsetX;
+        endY = e.offsetY;
+
+        // Clear the canvas and redraw the rectangle
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+    });
+
+    // Stop drawing
+    canvas.addEventListener("mouseup", () => {
+        isDrawing = false;
+    });
+}
+
+function getRectangleCoordinates(canvas) {
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    if (!startX || !startY || !endX || !endY) {
+        return null; // No rectangle drawn
+    }
+
+    // Get the resized image dimensions
+    const modalImage = document.getElementById("modalImage");
+    const resizedWidth = modalImage.clientWidth;
+    const resizedHeight = modalImage.clientHeight;
+
+    // Calculate scaling factors
+    const scaleX = originalWidth / resizedWidth;
+    const scaleY = originalHeight / resizedHeight;
+
+    // Scale the coordinates to the original image size
+    const scaledStartX = startX * scaleX;
+    const scaledStartY = startY * scaleY;
+    const scaledEndX = endX  * scaleX;
+    const scaledEndY = endY  * scaleY;
+
+    return {
+        x_min: Math.min(scaledStartX, scaledEndX),
+        y_min: Math.min(scaledStartY, scaledEndY),
+        x_max: Math.max(scaledStartX, scaledEndX),
+        y_max: Math.max(scaledStartY, scaledEndY),
+    };
+}
+
+async function sendImageToSegment(canvas, frame){
+    const coordinates = getRectangleCoordinates(canvas);
+    
+    if (coordinates) {
+        const button = document.getElementById("sendToSegment");
+
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="loader"></span>';
+        button.disabled = true;
+
+        try{
+
+            // Send the file to the server
+           const response = await fetch('/segment-image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image_path: frame, coordinates: coordinates }),
+            })
+
+            if(response.ok){
+                alert("Segmented");
+            }
+            else{
+                alert("Something went wrong.");
+            }
+            
+        } catch(error){
+            alert("An error occurred while segmenting the image.");
+        } finally{
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+        
+    } else {
+        alert("Please draw a rectangle first.");
+    }
+
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
         button.addEventListener("mouseenter", function() {
