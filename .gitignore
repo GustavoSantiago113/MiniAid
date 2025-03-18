@@ -1,5 +1,5 @@
 frames/
-colmap_output/
+depth_images/
 models/sam_l.pt
-colmap/
 app/static/models/sam_l.pt
+test.obj
