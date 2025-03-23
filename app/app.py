@@ -19,7 +19,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
 os.makedirs(app.config['MODELS'], exist_ok=True)
 
-model = SAM(os.path.join(app.config['MODELS'], "sam_l.pt"))
+model = SAM(os.path.join(app.config['MODELS'], "sam2_l.pt"))
 
 def cleanup_upload_folder():
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -181,4 +181,4 @@ def about_page():
     return "About"
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

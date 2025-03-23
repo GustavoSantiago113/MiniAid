@@ -75,7 +75,7 @@ def generate_pdf(image_path, text_color_dict, output):
 
     c.save()
 
-def extract_frames(video_path, output_folder, frame_interval=10):
+def extract_frames(video_path, output_folder, frame_interval=30):
 
     cap = cv2.VideoCapture(video_path)
     frame_count = 0
@@ -99,7 +99,7 @@ def extract_frames(video_path, output_folder, frame_interval=10):
         
         # Save frame
         if frame_count % frame_interval == 0:
-            frame_filename = os.path.join(output_folder, f"frame_{extracted_count:04d}.jpg")
+            frame_filename = os.path.join(output_folder, f"frame_{extracted_count:04d}.png")
             cv2.imwrite(frame_filename, frame)
             extracted_count += 1
         
@@ -109,7 +109,7 @@ def extract_frames(video_path, output_folder, frame_interval=10):
 
 def segmenting_image(coordinates, model, source):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    results = model(source, device=device, retina_masks=True, imgsz=640, bboxes=coordinates)
+    results = model.predict(source, device=device, bboxes=coordinates, imgsz=1024, conf=0.25)
     
     for result in results:
         img = np.copy(result.orig_img)
