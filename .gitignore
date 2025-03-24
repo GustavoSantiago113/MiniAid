@@ -1,7 +1,6 @@
 frames/
-depth_images/
-models/sam2_l.pt
-app/static/models/sam2_l.pt
+models/
+app/static/models/
 test.obj
 point_clouds/
 calibration_images/
