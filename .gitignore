@@ -2,7 +2,7 @@ frames/
 models/
 app/static/models/
 test.obj
-point_clouds/
+depth_images/
 calibration_images/
 segmented_images
 SIFT_output
