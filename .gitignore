@@ -5,5 +5,5 @@ test.obj
 depth_images/
 calibration_images/
 segmented_images
-SIFT_output
 videos
+matched_features
