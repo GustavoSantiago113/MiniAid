@@ -2,8 +2,8 @@ frames/
 models/
 app/static/models/
 test.obj
-depth_images/
+depth_maps/
 calibration_images/
 segmented_images
 videos
-matched_features
+matches/
