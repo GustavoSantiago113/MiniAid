@@ -7,3 +7,4 @@ calibration_images/
 segmented_images
 videos
 matches/
+camera_poses/
