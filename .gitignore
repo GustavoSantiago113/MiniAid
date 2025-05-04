@@ -1,10 +1,7 @@
 frames/
 models/
 app/static/models/
-test.obj
-depth_maps/
-calibration_images/
-segmented_images
 videos
-matches/
-camera_poses/
+croco/
+dust3r/
+images/
