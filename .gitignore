@@ -1,4 +1,6 @@
 frames/
-colmap_output/
-models/sam_l.pt
-colmap/
+models/
+dust3r/
+croco/
+reconstructions/
+videos/
