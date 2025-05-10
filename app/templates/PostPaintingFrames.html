@@ -58,17 +58,23 @@
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
-                    <p>Draw a rectangle around the area to be segmented</p>
-                    <p>If the image does not come as expected, try drawing a broader rectangle</p>
+                    <div id="pre-segment-text">
+                        <p>Draw a rectangle around the area to be segmented</p>
+                        <p>If the image does not come as expected, try drawing a broader rectangle</p>
+                    </div>
+                    <div id="post-segment-text" style="display: none;">
+                        <p>Re-arrange the points to improve the segmentation</p>
+                    </div>
                 </div>
                 <div id="imageContainer">
                     <img id="modalImage" src="" alt="Image">
                     <canvas id="imageCanvas"></canvas>
                 </div>
                 <div class = "action-button" id="sendToSegment">
-                    <h4>
-                        Segment
-                    </h4>
+                    Segment
+                </div>
+                <div class = "action-button" id="downloadSegmented" style="display: none;">
+                    Download
                 </div>
             </div>
         </div>

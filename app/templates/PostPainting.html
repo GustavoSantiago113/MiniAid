@@ -22,17 +22,17 @@
                     Post-Painting
                 </span>
                 <span class = "description">
-                    Upload a 360 video of the mini to obtain segmented images and colored 3D models!
+                    Upload photos of the mini to obtain the segmented image and 3D model!
                 </span>
             </div>
             
         </div>
         <div class="central-button">
-            <form id="uploadFormVideo">
-                <input type="file" id="videoInput" name="file" accept="video/*" style="display: none;" required>
-                <div class="action-button" onclick="document.getElementById('videoInput').click();" id="uploadVideo">
+            <form id="uploadFormImage">
+                <input multiple type="file" id="imageInput" name="image" accept="image/*" style="display: none;" required>
+                <div class="action-button" onclick="document.getElementById('imageInput').click();" id="uploadImage">
                     <img src="../static/icons/export.png" class="button-icon">
-                    <h4>Upload the video</h4>
+                    <h4>Upload the images</h4>
                 </div>
             </form>
         </div>
@@ -51,8 +51,8 @@
         </div>
     </footer>
     <script>
-        document.getElementById("videoInput").addEventListener("change", function () {
-            sendVideoToFrames();
+        document.getElementById("imageInput").addEventListener("change", function () {
+            sendImageToFrames();
         });
     </script>
 </html>

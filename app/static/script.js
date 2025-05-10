@@ -217,27 +217,29 @@ function rgbToHex(rgb) {
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-async function sendVideoToFrames(){
-    const button = document.getElementById("uploadVideo");
+async function sendImageToFrames(){
+    const button = document.getElementById("uploadImage");
 
     const originalText = button.innerHTML;
     button.innerHTML = '<span class="loader"></span>';
     button.disabled = true;
     
     try{
-        const fileInput = document.getElementById('videoInput');
-        const file = fileInput.files[0];
+        const fileInput = document.getElementById('imageInput');
+        const files = fileInput.files;
 
-        if (!file) {
-            alert('Please select a file.');
+        if (!files || files.length === 0) {
+            alert('Please select at least one file.');
             return;
         }
 
         const formData = new FormData();
-        formData.append('file', file);
+        Array.from(files).forEach(file => {
+            formData.append('files[]', file);
+        });
 
         // Send the file to the server
-        await fetch('/uploadVideo', {
+        await fetch('/uploadImageFrame', {
             method: 'POST',
             body: formData,
         }).then(response => response.json())
@@ -252,7 +254,7 @@ async function sendVideoToFrames(){
             alert("Something went wrong.");
         });
     } catch(error){
-        alert("An error occurred while uploading the video.");
+        alert("An error occurred while uploading the images.");
     } finally{
         button.innerHTML = originalText;
         button.disabled = false;
@@ -413,31 +415,44 @@ async function sendImageToSegment(canvas, frame){
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ image_path: frame, coordinates: coordinates }),
-            }).then(response => {
-                if (response.ok) {
-                    return response.blob();
-                }
-                throw new Error('Network response was not ok');
-            })
-            .then(blob => {
-                // Create a link element to trigger download
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = 'segmented_image.png';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            })
+            });
             
-        } catch(error){
+            const data = await response.json();
+
+            if (data.success) {
+                // Display the segmented image
+                const segmentedImage = document.createElement('img');
+                segmentedImage.src = `data:image/png;base64,${data.image}`;
+                segmentedImage.alt = "Segmented Image";
+                segmentedImage.id = "segmentedImage";
+
+                const imageContainer = document.getElementById("imageContainer");
+                imageContainer.innerHTML = ""; // Clear previous content
+                imageContainer.appendChild(segmentedImage);
+
+                const buttonPre = document.getElementById("sendToSegment");
+                buttonPre.style.display = "none";
+
+                const buttonPost = document.getElementById("downloadSegmented");
+                buttonPost.style.display = "block";
+
+                const textPre = document.getElementById("pre-segment-text");
+                textPre.style.display = "none";
+
+                const textPost = document.getElementById("post-segment-text");
+                textPost.style.display = "block";
+
+
+            } else {
+                alert("Failed to segment the image.");
+            }
+        } catch (error) {
+            console.error("Error:", error);
             alert("An error occurred while segmenting the image.");
-        } finally{
+        } finally {
             button.innerHTML = originalText;
             button.disabled = false;
         }
-        
     } else {
         alert("Please draw a rectangle first.");
     }

@@ -9,6 +9,7 @@ import cv2
 import io
 import atexit
 from ultralytics import SAM
+from base64 import b64encode
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
@@ -19,7 +20,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
 os.makedirs(app.config['MODELS'], exist_ok=True)
 
-model = SAM(os.path.join(app.config['MODELS'], "sam2_l.pt"))
+model = SAM(os.path.join(app.config['MODELS'], "mobile_sam.pt"))
 
 def cleanup_upload_folder():
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -46,11 +47,11 @@ def pre_painting_page():
 def upload_image():
 
     if 'file' not in request.files:
-        return "No file uploaded", 400
+         return jsonify({'success': False, 'error': 'No file uploaded'}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return "No file selected", 400
+        return jsonify({'success': False, 'error': 'No files uploaded'}), 400
 
     # Save the file to the upload folder
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.replace(" ", ""))
@@ -125,22 +126,25 @@ def export_pdf():
 def post_painting_page():
     return render_template("PostPainting.html")
 
-@app.route("/uploadVideo", methods=['POST'])
+@app.route("/uploadImageFrame", methods=['POST'])
 def video_to_frame():
-    if 'file' not in request.files:
-        return "No file uploaded", 400
+    
+    if 'files[]' not in request.files:
+        return jsonify({'success': False, 'error': 'No files uploaded'}), 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return "No file selected", 400
+    files = request.files.getlist('files[]')
+    if not files:
+        return jsonify({'success': False, 'error': 'No files selected'}), 400
 
-    # Save the file to the upload folder
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename.replace(" ", ""))
-    file.save(file_path)
+    for file in files:
+        if file.filename == '':
+            continue
 
-    utils.extract_frames(file_path, app.config['UPLOAD_FOLDER_FRAMES'])
+        # Save each file to the upload folder
+        filename = os.path.join(app.config['UPLOAD_FOLDER_FRAMES'], file.filename.replace(" ", ""))
+        file.save(filename)
 
-    # Return the filename as JSON
+    # Return the filenames as JSON
     return jsonify({'success': True})
 
 @app.route("/post-painting-frames")
@@ -168,13 +172,10 @@ def segment_image():
     # Get the image data
     image_bytes = utils.segmenting_image(coords_list, model, file)
 
+    base64_image = b64encode(image_bytes.read()).decode('utf-8')
+
     # Return the image as a downloadable file
-    return send_file(
-        image_bytes,
-        mimetype='image/png',
-        as_attachment=True,
-        download_name='segmented_image.png'
-    )
+    return jsonify({'success': True, 'image': base64_image})
 
 @app.route("/about")
 def about_page():
