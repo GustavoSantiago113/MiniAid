@@ -328,6 +328,11 @@ async function openSegmentationModal(imageSrc, canvas) {
     // Close Modal
     document.querySelector(".close").addEventListener("click", function() {
         document.getElementById("segmentationModal").style.display = "none";
+        document.getElementById("sendToSegment").style.display = "block";
+        document.getElementById("downloadSegmented").style.display = "none";
+        document.getElementById("pre-segment-text").style.display = "block";
+        document.getElementById("post-segment-text").style.display = "none";
+
     });
 
 }
@@ -420,15 +425,6 @@ async function sendImageToSegment(canvas, frame){
             const data = await response.json();
 
             if (data.success) {
-                // Display the segmented image
-                const segmentedImage = document.createElement('img');
-                segmentedImage.src = `data:image/png;base64,${data.image}`;
-                segmentedImage.alt = "Segmented Image";
-                segmentedImage.id = "segmentedImage";
-
-                const imageContainer = document.getElementById("imageContainer");
-                imageContainer.innerHTML = ""; // Clear previous content
-                imageContainer.appendChild(segmentedImage);
 
                 const buttonPre = document.getElementById("sendToSegment");
                 buttonPre.style.display = "none";
@@ -442,6 +438,8 @@ async function sendImageToSegment(canvas, frame){
                 const textPost = document.getElementById("post-segment-text");
                 textPost.style.display = "block";
 
+                const polygon = data.polygon;
+                renderPolygonOnCanvas(canvas, polygon);
 
             } else {
                 alert("Failed to segment the image.");
@@ -457,6 +455,38 @@ async function sendImageToSegment(canvas, frame){
         alert("Please draw a rectangle first.");
     }
 
+}
+
+function renderPolygonOnCanvas(canvas, polygon) {
+    const ctx = canvas.getContext("2d");
+
+    // Get the resized canvas dimensions
+    const modalImage = document.getElementById("modalImage");
+    const resizedWidth = modalImage.clientWidth;
+    const resizedHeight = modalImage.clientHeight;
+
+    // Calculate scaling factors (from original to resized)
+    const scaleX = resizedWidth / originalWidth;
+    const scaleY = resizedHeight / originalHeight;
+
+    // Clear the canvas before drawing
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the polygon
+    ctx.beginPath();
+    polygon.forEach((point, index) => {
+        const x = point[0] * scaleX;
+        const y = point[1] * scaleY;
+        if (index === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    });
+    ctx.closePath();  // Close the polygon
+    ctx.strokeStyle = "green";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 }
 
 document.addEventListener("DOMContentLoaded", function () {

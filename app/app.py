@@ -170,12 +170,10 @@ def segment_image():
     ]
     
     # Get the image data
-    image_bytes = utils.segmenting_image(coords_list, model, file)
-
-    base64_image = b64encode(image_bytes.read()).decode('utf-8')
+    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file)
 
     # Return the image as a downloadable file
-    return jsonify({'success': True, 'image': base64_image})
+    return jsonify({'success': True, 'polygon': polygon_coords})
 
 @app.route("/about")
 def about_page():
