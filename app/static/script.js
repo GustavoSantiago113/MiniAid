@@ -345,6 +345,11 @@ let isDragging = false;
 let draggingPointIndex = -1;
 let polygonPoints = [];
 const POINT_RADIUS = 6;
+let zoomScale = 1.0;
+let offsetX = 0;
+let offsetY = 0;
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
 
 function initializeCanvasDrawing(canvas, ctx) {
 
@@ -357,14 +362,15 @@ function initializeCanvasDrawing(canvas, ctx) {
         if (interactionMode === "polygon") {
             draggingPointIndex = -1;
 
-            polygonPoints.forEach(([x, y], index) => {
-                const dx = x - mouseX;
-                const dy = y - mouseY;
-                if (Math.sqrt(dx * dx + dy * dy) < POINT_RADIUS + 2) {
-                    draggingPointIndex = index;
-                }
+            canvas.addEventListener("mousedown", (e) => {
+                const { x, y } = getTransformedMouseCoordinates(e, canvas);
+                polygonPoints.forEach(([px, py], index) => {
+                    if (Math.hypot(px - x, py - y) < POINT_RADIUS) {
+                        draggingPointIndex = index;
+                    }
+                });
             });
-            
+
             if (draggingPointIndex !== -1) {
                 isDragging = true;
             }
@@ -394,10 +400,55 @@ function initializeCanvasDrawing(canvas, ctx) {
         }
     });
 
+    canvas.addEventListener("mousedown", (e) => {
+        if (e.button === 1 || e.shiftKey) {  // Middle mouse or Shift+drag
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY };
+        }
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (isPanning) {
+            const dx = e.clientX - panStart.x;
+            const dy = e.clientY - panStart.y;
+            offsetX += dx;
+            offsetY += dy;
+            panStart = { x: e.clientX, y: e.clientY };
+            drawPolygonAndPoints(canvas.getContext("2d"));
+        }
+    });
+
+    canvas.addEventListener("mouseup", () => {
+        isPanning = false;
+    });
+    canvas.addEventListener("mouseleave", () => {
+        isPanning = false;
+    });
+
     // Stop drawing
     canvas.addEventListener("mouseup", () => {
         isDrawing = false;
         isDragging = false;
+    });
+
+        canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+
+        const zoomFactor = 1.1;
+        const mouseX = (e.offsetX - offsetX) / zoomScale;
+        const mouseY = (e.offsetY - offsetY) / zoomScale;
+
+        if (e.deltaY < 0) {
+            zoomScale *= zoomFactor;
+        } else {
+            zoomScale /= zoomFactor;
+        }
+
+        // Adjust offset so zoom is centered on the cursor
+        offsetX = e.offsetX - mouseX * zoomScale;
+        offsetY = e.offsetY - mouseY * zoomScale;
+
+        drawPolygonAndPoints(canvas.getContext("2d"));
     });
 }
 
@@ -498,7 +549,13 @@ function renderPolygonOnCanvas(canvas, polygon) {
 }
 
 function drawPolygonAndPoints(ctx) {
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const canvas = ctx.canvas;
+    ctx.save();
+
+    // Clear canvas and apply zoom + pan transform
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(zoomScale, zoomScale);
 
     // Draw polygon
     ctx.beginPath();
@@ -508,18 +565,29 @@ function drawPolygonAndPoints(ctx) {
     });
     ctx.closePath();
     ctx.strokeStyle = "green";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 / zoomScale; // Keep line thickness consistent
     ctx.stroke();
 
-    // Draw points (handles)
+    // Draw draggable points
     for (const [x, y] of polygonPoints) {
         ctx.beginPath();
-        ctx.arc(x, y, POINT_RADIUS, 0, 2 * Math.PI);
+        ctx.arc(x, y, POINT_RADIUS / zoomScale, 0, 2 * Math.PI);
         ctx.fillStyle = "blue";
         ctx.fill();
         ctx.strokeStyle = "white";
         ctx.stroke();
     }
+
+    ctx.restore();
+}
+
+function getTransformedMouseCoordinates(e, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    const x = (rawX - offsetX) / zoomScale;
+    const y = (rawY - offsetY) / zoomScale;
+    return { x, y };
 }
 
 function getUpdatedPolygonOriginalScale() {
