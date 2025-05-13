@@ -332,41 +332,72 @@ async function openSegmentationModal(imageSrc, canvas) {
         document.getElementById("downloadSegmented").style.display = "none";
         document.getElementById("pre-segment-text").style.display = "block";
         document.getElementById("post-segment-text").style.display = "none";
-
+        interactionMode = "rectangle";
     });
 
 }
 
 let startX, startY, endX, endY;
 let originalWidth, originalHeight;
+let interactionMode = "rectangle";
+let isDrawing = false;
+let isDragging = false;
+let draggingPointIndex = -1;
+let polygonPoints = [];
+const POINT_RADIUS = 6;
 
 function initializeCanvasDrawing(canvas, ctx) {
-    let isDrawing = false;
 
     // Start drawing
     canvas.addEventListener("mousedown", (e) => {
-        isDrawing = true;
-        startX = e.offsetX;
-        startY = e.offsetY;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (interactionMode === "polygon") {
+            draggingPointIndex = -1;
+
+            polygonPoints.forEach(([x, y], index) => {
+                const dx = x - mouseX;
+                const dy = y - mouseY;
+                if (Math.sqrt(dx * dx + dy * dy) < POINT_RADIUS + 2) {
+                    draggingPointIndex = index;
+                }
+            });
+            
+            if (draggingPointIndex !== -1) {
+                isDragging = true;
+            }
+
+        } else if (interactionMode === "rectangle") {
+            isDrawing = true;
+            startX = mouseX;
+            startY = mouseY;
+        }
     });
 
-    // Draw rectangle
     canvas.addEventListener("mousemove", (e) => {
-        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-        endX = e.offsetX;
-        endY = e.offsetY;
-
-        // Clear the canvas and redraw the rectangle
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+        if (interactionMode === "polygon" && isDragging && draggingPointIndex !== -1) {
+            polygonPoints[draggingPointIndex] = [mouseX, mouseY];
+            drawPolygonAndPoints(ctx);
+        } else if (interactionMode === "rectangle" && isDrawing) {
+            endX = mouseX;
+            endY = mouseY;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+        }
     });
 
     // Stop drawing
     canvas.addEventListener("mouseup", () => {
         isDrawing = false;
+        isDragging = false;
     });
 }
 
@@ -403,7 +434,7 @@ function getRectangleCoordinates(canvas) {
 
 async function sendImageToSegment(canvas, frame){
     const coordinates = getRectangleCoordinates(canvas);
-    
+
     if (coordinates) {
         const button = document.getElementById("sendToSegment");
 
@@ -426,19 +457,13 @@ async function sendImageToSegment(canvas, frame){
 
             if (data.success) {
 
-                const buttonPre = document.getElementById("sendToSegment");
-                buttonPre.style.display = "none";
-
-                const buttonPost = document.getElementById("downloadSegmented");
-                buttonPost.style.display = "block";
-
-                const textPre = document.getElementById("pre-segment-text");
-                textPre.style.display = "none";
-
-                const textPost = document.getElementById("post-segment-text");
-                textPost.style.display = "block";
+                document.getElementById("sendToSegment").style.display = "none";
+                document.getElementById("downloadSegmented").style.display = "block";
+                document.getElementById("pre-segment-text").style.display = "none";
+                document.getElementById("post-segment-text").style.display = "block";
 
                 const polygon = data.polygon;
+                interactionMode = "polygon";
                 renderPolygonOnCanvas(canvas, polygon);
 
             } else {
@@ -460,34 +485,51 @@ async function sendImageToSegment(canvas, frame){
 function renderPolygonOnCanvas(canvas, polygon) {
     const ctx = canvas.getContext("2d");
 
-    // Get the resized canvas dimensions
+    if (polygon.length === 0) return;
+
+    // Scale from original to canvas size
     const modalImage = document.getElementById("modalImage");
-    const resizedWidth = modalImage.clientWidth;
-    const resizedHeight = modalImage.clientHeight;
+    const scaleX = modalImage.clientWidth / originalWidth;
+    const scaleY = modalImage.clientHeight / originalHeight;
 
-    // Calculate scaling factors (from original to resized)
-    const scaleX = resizedWidth / originalWidth;
-    const scaleY = resizedHeight / originalHeight;
+    polygonPoints = polygon.map(([x, y]) => [x * scaleX, y * scaleY]);
 
-    // Clear the canvas before drawing
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPolygonAndPoints(ctx);
+}
 
-    // Draw the polygon
+function drawPolygonAndPoints(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    // Draw polygon
     ctx.beginPath();
-    polygon.forEach((point, index) => {
-        const x = point[0] * scaleX;
-        const y = point[1] * scaleY;
-        if (index === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
+    polygonPoints.forEach(([x, y], index) => {
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
     });
-    ctx.closePath();  // Close the polygon
+    ctx.closePath();
     ctx.strokeStyle = "green";
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    // Draw points (handles)
+    for (const [x, y] of polygonPoints) {
+        ctx.beginPath();
+        ctx.arc(x, y, POINT_RADIUS, 0, 2 * Math.PI);
+        ctx.fillStyle = "blue";
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.stroke();
+    }
 }
+
+function getUpdatedPolygonOriginalScale() {
+    const modalImage = document.getElementById("modalImage");
+    const scaleX = originalWidth / modalImage.clientWidth;
+    const scaleY = originalHeight / modalImage.clientHeight;
+
+    return polygonPoints.map(([x, y]) => [x * scaleX, y * scaleY]);
+}
+
 
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
