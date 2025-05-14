@@ -350,25 +350,22 @@ let offsetX = 0;
 let offsetY = 0;
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
+let image = null;
 
 function initializeCanvasDrawing(canvas, ctx) {
 
     // Start drawing
     canvas.addEventListener("mousedown", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const { x, y } = getTransformedMouseCoordinates(e, canvas);
 
         if (interactionMode === "polygon") {
             draggingPointIndex = -1;
 
-            canvas.addEventListener("mousedown", (e) => {
-                const { x, y } = getTransformedMouseCoordinates(e, canvas);
-                polygonPoints.forEach(([px, py], index) => {
-                    if (Math.hypot(px - x, py - y) < POINT_RADIUS) {
-                        draggingPointIndex = index;
-                    }
-                });
+            
+            polygonPoints.forEach(([px, py], index) => {
+            if (Math.hypot(px - x, py - y) < POINT_RADIUS / zoomScale) {
+                    draggingPointIndex = index;
+                }
             });
 
             if (draggingPointIndex !== -1) {
@@ -377,22 +374,35 @@ function initializeCanvasDrawing(canvas, ctx) {
 
         } else if (interactionMode === "rectangle") {
             isDrawing = true;
-            startX = mouseX;
-            startY = mouseY;
+            startX = x;
+            startY = y;
+        }
+
+        if (e.button === 1 || e.shiftKey) {
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY };
         }
     });
 
     canvas.addEventListener("mousemove", (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const { x, y } = getTransformedMouseCoordinates(e, canvas);
+
+        if (isPanning) {
+            const dx = e.clientX - panStart.x;
+            const dy = e.clientY - panStart.y;
+            offsetX += dx;
+            offsetY += dy;
+            panStart = { x: e.clientX, y: e.clientY };
+            drawPolygonAndPoints(ctx);
+            return;
+        }
 
         if (interactionMode === "polygon" && isDragging && draggingPointIndex !== -1) {
-            polygonPoints[draggingPointIndex] = [mouseX, mouseY];
+            polygonPoints[draggingPointIndex] = [x, y];
             drawPolygonAndPoints(ctx);
         } else if (interactionMode === "rectangle" && isDrawing) {
-            endX = mouseX;
-            endY = mouseY;
+            endX = x;
+            endY = y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = "red";
             ctx.lineWidth = 2;
@@ -400,43 +410,28 @@ function initializeCanvasDrawing(canvas, ctx) {
         }
     });
 
-    canvas.addEventListener("mousedown", (e) => {
-        if (e.button === 1 || e.shiftKey) {  // Middle mouse or Shift+drag
-            isPanning = true;
-            panStart = { x: e.clientX, y: e.clientY };
-        }
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-        if (isPanning) {
-            const dx = e.clientX - panStart.x;
-            const dy = e.clientY - panStart.y;
-            offsetX += dx;
-            offsetY += dy;
-            panStart = { x: e.clientX, y: e.clientY };
-            drawPolygonAndPoints(canvas.getContext("2d"));
-        }
-    });
-
-    canvas.addEventListener("mouseup", () => {
-        isPanning = false;
-    });
-    canvas.addEventListener("mouseleave", () => {
-        isPanning = false;
-    });
-
-    // Stop drawing
     canvas.addEventListener("mouseup", () => {
         isDrawing = false;
         isDragging = false;
+        isPanning = false;
     });
 
-        canvas.addEventListener("wheel", (e) => {
-        e.preventDefault();
+    canvas.addEventListener("mouseleave", () => {
+        isDrawing = false;
+        isDragging = false;
+        isPanning = false;
+    });
 
+    canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
         const zoomFactor = 1.1;
-        const mouseX = (e.offsetX - offsetX) / zoomScale;
-        const mouseY = (e.offsetY - offsetY) / zoomScale;
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const x = (mouseX - offsetX) / zoomScale;
+        const y = (mouseY - offsetY) / zoomScale;
 
         if (e.deltaY < 0) {
             zoomScale *= zoomFactor;
@@ -444,11 +439,10 @@ function initializeCanvasDrawing(canvas, ctx) {
             zoomScale /= zoomFactor;
         }
 
-        // Adjust offset so zoom is centered on the cursor
-        offsetX = e.offsetX - mouseX * zoomScale;
-        offsetY = e.offsetY - mouseY * zoomScale;
+        offsetX = mouseX - x * zoomScale;
+        offsetY = mouseY - y * zoomScale;
 
-        drawPolygonAndPoints(canvas.getContext("2d"));
+        drawPolygonAndPoints(ctx);
     });
 }
 
