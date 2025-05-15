@@ -7,7 +7,6 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
-import os
 import cv2
 import torch
 

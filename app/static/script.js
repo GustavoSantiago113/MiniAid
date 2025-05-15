@@ -345,25 +345,21 @@ let isDragging = false;
 let draggingPointIndex = -1;
 let polygonPoints = [];
 const POINT_RADIUS = 6;
-let zoomScale = 1.0;
-let offsetX = 0;
-let offsetY = 0;
-let isPanning = false;
-let panStart = { x: 0, y: 0 };
-let image = null;
 
 function initializeCanvasDrawing(canvas, ctx) {
 
     // Start drawing
     canvas.addEventListener("mousedown", (e) => {
-        const { x, y } = getTransformedMouseCoordinates(e, canvas);
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
         if (interactionMode === "polygon") {
             draggingPointIndex = -1;
 
             
             polygonPoints.forEach(([px, py], index) => {
-            if (Math.hypot(px - x, py - y) < POINT_RADIUS / zoomScale) {
+            if (Math.hypot(px - x, py - y) < POINT_RADIUS) {
                     draggingPointIndex = index;
                 }
             });
@@ -378,24 +374,12 @@ function initializeCanvasDrawing(canvas, ctx) {
             startY = y;
         }
 
-        if (e.button === 1 || e.shiftKey) {
-            isPanning = true;
-            panStart = { x: e.clientX, y: e.clientY };
-        }
     });
 
     canvas.addEventListener("mousemove", (e) => {
-        const { x, y } = getTransformedMouseCoordinates(e, canvas);
-
-        if (isPanning) {
-            const dx = e.clientX - panStart.x;
-            const dy = e.clientY - panStart.y;
-            offsetX += dx;
-            offsetY += dy;
-            panStart = { x: e.clientX, y: e.clientY };
-            drawPolygonAndPoints(ctx);
-            return;
-        }
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
         if (interactionMode === "polygon" && isDragging && draggingPointIndex !== -1) {
             polygonPoints[draggingPointIndex] = [x, y];
@@ -413,36 +397,11 @@ function initializeCanvasDrawing(canvas, ctx) {
     canvas.addEventListener("mouseup", () => {
         isDrawing = false;
         isDragging = false;
-        isPanning = false;
     });
 
     canvas.addEventListener("mouseleave", () => {
         isDrawing = false;
         isDragging = false;
-        isPanning = false;
-    });
-
-    canvas.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        const zoomFactor = 1.1;
-
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const x = (mouseX - offsetX) / zoomScale;
-        const y = (mouseY - offsetY) / zoomScale;
-
-        if (e.deltaY < 0) {
-            zoomScale *= zoomFactor;
-        } else {
-            zoomScale /= zoomFactor;
-        }
-
-        offsetX = mouseX - x * zoomScale;
-        offsetY = mouseY - y * zoomScale;
-
-        drawPolygonAndPoints(ctx);
     });
 }
 
@@ -544,12 +503,11 @@ function renderPolygonOnCanvas(canvas, polygon) {
 
 function drawPolygonAndPoints(ctx) {
     const canvas = ctx.canvas;
-    ctx.save();
-
-    // Clear canvas and apply zoom + pan transform
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(zoomScale, zoomScale);
+
+    // Draw the image as background
+    const modalImage = document.getElementById("modalImage");
+    ctx.drawImage(modalImage, 0, 0, canvas.width, canvas.height);
 
     // Draw polygon
     ctx.beginPath();
@@ -559,23 +517,21 @@ function drawPolygonAndPoints(ctx) {
     });
     ctx.closePath();
     ctx.strokeStyle = "green";
-    ctx.lineWidth = 2 / zoomScale; // Keep line thickness consistent
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
     ctx.fill();
-    
+
     // Draw draggable points
     for (const [x, y] of polygonPoints) {
         ctx.beginPath();
-        ctx.arc(x, y, POINT_RADIUS / zoomScale, 0, 2 * Math.PI);
+        ctx.arc(x, y, POINT_RADIUS, 0, 2 * Math.PI);
         ctx.fillStyle = "blue";
         ctx.fill();
         ctx.strokeStyle = "white";
         ctx.stroke();
     }
-
-    ctx.restore();
 }
 
 function getTransformedMouseCoordinates(e, canvas) {
@@ -594,7 +550,6 @@ function getUpdatedPolygonOriginalScale() {
 
     return polygonPoints.map(([x, y]) => [x * scaleX, y * scaleY]);
 }
-
 
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
