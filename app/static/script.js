@@ -562,6 +562,9 @@ function drawPolygonAndPoints(ctx) {
     ctx.lineWidth = 2 / zoomScale; // Keep line thickness consistent
     ctx.stroke();
 
+    ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
+    ctx.fill();
+    
     // Draw draggable points
     for (const [x, y] of polygonPoints) {
         ctx.beginPath();
