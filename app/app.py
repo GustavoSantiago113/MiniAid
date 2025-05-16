@@ -175,6 +175,27 @@ def segment_image():
     # Return the image as a downloadable file
     return jsonify({'success': True, 'polygon': polygon_coords})
 
+@app.route("/download-segmented", methods=['POST'])
+def download_segmented():
+    data = request.get_json()
+    image_path = data['image_path']
+    polygon = data['polygon']
+
+    # If image_path is a URL, extract the filename
+    if image_path.startswith("http") or image_path.startswith("/"):
+        image_path = image_path.split("static/")[-1]
+        image_path = os.path.join("app/static", image_path)
+
+    # Use the utility to crop and mask the image
+    output_img = utils.crop_image_with_polygon(image_path, polygon)
+
+    # Save to a BytesIO buffer
+    img_io = BytesIO()
+    output_img.save(img_io, "PNG")
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="segmented.png")
+
 @app.route("/about")
 def about_page():
     return "About"

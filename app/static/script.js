@@ -325,6 +325,10 @@ async function openSegmentationModal(imageSrc, canvas) {
         sendImageToSegment(canvas, imageSrc);
     });
 
+    document.getElementById("downloadSegmented").addEventListener("click", function() {
+        segmentImage(imageSrc);
+    });
+
     // Close Modal
     document.querySelector(".close").addEventListener("click", function() {
         document.getElementById("segmentationModal").style.display = "none";
@@ -551,6 +555,51 @@ function getUpdatedPolygonOriginalScale() {
     return polygonPoints.map(([x, y]) => [x * scaleX, y * scaleY]);
 }
 
+async function segmentImage(imagePath){
+    const coordinates = getUpdatedPolygonOriginalScale();
+
+    if (coordinates) {
+        const button = document.getElementById("downloadSegmented");
+
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="loader"></span>';
+        button.disabled = true;
+
+        try{
+
+            // Send the file to the server
+            const response = await fetch('/download-segmented', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image_path: imagePath, polygon: coordinates }),
+                });
+                
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "segmented.png";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                button.disabled = false;
+                button.innerHTML = originalText;
+                
+            } else {
+                alert("Failed to download segmented image.");
+            }
+        } catch (error) {
+            alert("An error occurred while downloading the image.");
+        }
+
+    }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
         button.addEventListener("mouseenter", function() {
@@ -593,4 +642,4 @@ document.addEventListener("DOMContentLoaded", function () {
         sendImageToCrop();
     });
     
-});
+})

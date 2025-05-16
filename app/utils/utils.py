@@ -95,3 +95,30 @@ def get_segmentation_polygon(coordinates, model, source, epsilon_ratio=0.0005):
 
     # If no results, return an empty list
     return []
+
+def crop_image_with_polygon(image_path, polygon):
+    # Open image with PIL to handle EXIF orientation
+    pil_img = PILImage.open(image_path).convert("RGBA")
+    img = np.array(pil_img)
+
+    # Convert RGBA to BGRA for OpenCV
+    img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)
+    img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+    # Create mask
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    pts = np.array(polygon, dtype=np.int32)
+    cv2.fillPoly(mask, [pts], 255)
+
+    # Apply mask to alpha channel
+    img[:, :, 3] = mask
+
+    # Crop to bounding rect of polygon
+    x, y, w, h = cv2.boundingRect(pts)
+    cropped = img[y:y+h, x:x+w]
+
+    # Convert BGRA back to RGBA for PIL
+    cropped = cv2.cvtColor(cropped, cv2.COLOR_BGRA2RGBA)
+
+    # Convert to PIL Image for Flask send_file
+    return PILImage.fromarray(cropped)
