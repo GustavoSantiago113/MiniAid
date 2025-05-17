@@ -388,6 +388,13 @@ input[type="color"] {
     width: 1.736vw;
 }
 
+.file-item.upload-item {
+    border: 2px dashed var(--buttons-footer);
+    background: var(--background);
+    justify-content: center;
+    align-items: center;
+}
+
 .preview-section {
     flex-grow: 1;
     display: flex;

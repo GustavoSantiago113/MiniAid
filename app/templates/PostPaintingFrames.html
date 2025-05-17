@@ -32,6 +32,15 @@
                     <span>{{ frame }}</span>
                 </div>
                 {% endfor %}
+                <div class="file-item upload-item">
+                    <form id="reUploadFormImage">
+                        <input id="frameUploadInput" type="file" multiple accept="image/*" style="display:none;" required>
+                        <div onclick="document.getElementById('frameUploadInput').click();" id="reUploadImage">
+                            <img src="../static/icons/export.png" class="button-icon">
+                            <span>Upload more images</span>
+                        </div>          
+                    </form>
+                </div>
             </div>
 
             <div class="preview-section">
@@ -47,7 +56,7 @@
                     </button>
                     
                     <button class="action-button">
-                        <img src="../static/icons/sculpture.png" class="button-icon">
+                        <img src="../static/icons/sculpture.png" class="button-icon" onclick="openReconstructionModal()">
                         Generate 3D Model
                     </button>
                 </div>
@@ -78,6 +87,11 @@
                 </div>
             </div>
         </div>
+        <div id="reconstructionModal" class="modal">
+            <div class="modal-content">
+                Teste
+            </div>
+        </div>
     </body>
     <footer>
         <div class = "footer">
@@ -95,5 +109,8 @@
     <script>
         const previewImage = document.getElementById('preview-image');
         const canvas = document.getElementById("imageCanvas");
+        document.getElementById("frameUploadInput").addEventListener("change", function () {
+            sendMoreImageToFrames();
+        });
     </script>
 </html>

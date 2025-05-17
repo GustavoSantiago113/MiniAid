@@ -262,6 +262,32 @@ async function sendImageToFrames(){
 
 }
 
+async function sendMoreImageToFrames(){
+    
+    const fileInput = document.getElementById('frameUploadInput');
+
+    const files = fileInput.files;
+    if (!files.length) return;
+
+    const formData = new FormData();
+    Array.from(files).forEach(file => {
+        formData.append('files[]', file);
+    });
+
+    // Send the files to the server
+    const response = await fetch('/uploadImageFrame', {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (response.ok) {
+        // Reload the page to show new images in the list
+        window.location.reload();
+    } else {
+        alert('Failed to upload images.');
+    }
+}
+
 async function selectImage(filename, previewImage) {
     // Update the selected file in UI
     const fileItems = document.querySelectorAll('.file-item');
