@@ -311,6 +311,14 @@ async function selectImage(filename, previewImage) {
 let loadedModalImage = null;
 let originalWidthImg = 0;
 let originalHeightImg = 0;
+let startX, startY, endX, endY;
+let interactionMode = "rectangle";
+let lastRectangleCoords = null;
+let isDrawing = false;
+let isDragging = false;
+let draggingPointIndex = -1;
+let polygonPoints = [];
+const POINT_RADIUS = 6;
 
 async function openSegmentationModal(imageSrc, canvas) {
     
@@ -353,15 +361,10 @@ async function openSegmentationModal(imageSrc, canvas) {
             canvas.style.width = `${canvasWidth}px`;
             canvas.style.height = `${canvasHeight}px`;
             
-            console.log(`Canvas size set to: ${canvasWidth}x${canvasHeight}`);
-            
             // Draw the image on the canvas
             ctx.drawImage(loadedModalImage, 0, 0, canvasWidth, canvasHeight);
             
-            // Initialize drawing functionality
-            if (typeof initializeCanvasDrawing === 'function') {
-                initializeCanvasDrawing(canvas, ctx);
-            }
+            initializeCanvasDrawing(canvas, ctx);
         }, 50);
     };
 
@@ -396,15 +399,7 @@ async function openSegmentationModal(imageSrc, canvas) {
 
 }
 
-let startX, startY, endX, endY;
-let originalWidth, originalHeight;
-let interactionMode = "rectangle";
-let lastRectangleCoords = null;
-let isDrawing = false;
-let isDragging = false;
-let draggingPointIndex = -1;
-let polygonPoints = [];
-const POINT_RADIUS = 6;
+
 
 function initializeCanvasDrawing(canvas, ctx) {
 
@@ -448,13 +443,7 @@ function initializeCanvasDrawing(canvas, ctx) {
             endX = x;
             endY = y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Draw the image as background
-            if (loadedModalImage) {
-                ctx.drawImage(loadedModalImage, 0, 0, canvas.width, canvas.height);
-            }
-            ctx.strokeStyle = "green";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+            redrawCanvas(canvas, ctx);
         }
     });
 
@@ -469,26 +458,41 @@ function initializeCanvasDrawing(canvas, ctx) {
     });
 }
 
+function redrawCanvas(canvas, ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the image as background
+    if (loadedModalImage) {
+        ctx.drawImage(loadedModalImage, 0, 0, canvas.width, canvas.height);
+    }
+    
+    if (interactionMode === "rectangle" && startX !== undefined && endX !== undefined) {
+        // Draw rectangle
+        ctx.strokeStyle = "green";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+    } else if (interactionMode === "polygon" && polygonPoints.length > 0) {
+        // Draw polygon
+        drawPolygonAndPoints(ctx);
+    }
+}
+
 function getRectangleCoordinates() {
 
-    if (!startX || !startY || !endX || !endY) {
+    if (startX === undefined || startY === undefined || 
+        endX === undefined || endY === undefined) {
         return null; // No rectangle drawn
     }
 
-    // Get the resized image dimensions
-    const modalImage = document.getElementById("modalImage");
-    const resizedWidth = modalImage.clientWidth;
-    const resizedHeight = modalImage.clientHeight;
-
-    // Calculate scaling factors
-    const scaleX = originalWidth / resizedWidth;
-    const scaleY = originalHeight / resizedHeight;
+    // Calculate scaling factors from canvas to original image
+    const scaleX = originalWidthImg / canvas.width;
+    const scaleY = originalHeightImg / canvas.height;
 
     // Scale the coordinates to the original image size
     const scaledStartX = startX * scaleX;
     const scaledStartY = startY * scaleY;
-    const scaledEndX = endX  * scaleX;
-    const scaledEndY = endY  * scaleY;
+    const scaledEndX = endX * scaleX;
+    const scaledEndY = endY * scaleY;
 
     return {
         x_min: Math.min(scaledStartX, scaledEndX),
@@ -499,6 +503,7 @@ function getRectangleCoordinates() {
 }
 
 async function sendImageToSegment(canvas){
+    
     const coordinates = getRectangleCoordinates(canvas);
 
     if (coordinates) {
@@ -510,13 +515,15 @@ async function sendImageToSegment(canvas){
 
         try{
 
+            const imagePath = loadedModalImage.src;
+
             // Send the file to the server
            const response = await fetch('/segment-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ image_path: document.getElementById("modalImage").src, coordinates: coordinates }),
+                body: JSON.stringify({ image_path: imagePath, coordinates: coordinates }),
             });
             
             const data = await response.json();
@@ -528,9 +535,8 @@ async function sendImageToSegment(canvas){
                 document.getElementById("post-segment-text").style.display = "block";
                 document.getElementById("postSegmentationControls").style.display = "block";
 
-                const polygon = data.polygon;
                 interactionMode = "polygon";
-                renderPolygonOnCanvas(canvas, polygon);
+                renderPolygonOnCanvas(canvas, data.polygon);
 
             } else {
                 alert("Failed to segment the image.");
@@ -549,51 +555,48 @@ async function sendImageToSegment(canvas){
 }
 
 function renderPolygonOnCanvas(canvas, polygon) {
+    if (!polygon || !Array.isArray(polygon) || polygon.length === 0) {
+        console.error("Invalid polygon data received");
+        return;
+    }
+
     const ctx = canvas.getContext("2d");
-
-    if (polygon.length === 0) return;
-
-    // Scale from original to canvas size
-    const modalImage = document.getElementById("modalImage");
-    const scaleX = modalImage.clientWidth / originalWidth;
-    const scaleY = modalImage.clientHeight / originalHeight;
-
-    polygonPoints = polygon.map(([x, y]) => [x * scaleX, y * scaleY]);
-
+    
+    // Convert polygon points from original image coordinates to canvas coordinates
+    polygonPoints = polygon.map(point => {
+        const [origX, origY] = point;
+        const canvasX = (origX / originalWidthImg) * canvas.width;
+        const canvasY = (origY / originalHeightImg) * canvas.height;
+        return [canvasX, canvasY];
+    });
+    
+    // Draw the polygon
     drawPolygonAndPoints(ctx);
 }
 
 function drawPolygonAndPoints(ctx) {
-    const canvas = ctx.canvas;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw the image as background
-    const modalImage = document.getElementById("modalImage");
-    ctx.drawImage(modalImage, 0, 0, canvas.width, canvas.height);
+    
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.drawImage(loadedModalImage, 0, 0, ctx.canvas.width, ctx.canvas.height);
 
     // Draw polygon
     ctx.beginPath();
-    polygonPoints.forEach(([x, y], index) => {
-        if (index === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
+    ctx.moveTo(polygonPoints[0][0], polygonPoints[0][1]);
+    for (let i = 1; i < polygonPoints.length; i++) {
+        ctx.lineTo(polygonPoints[i][0], polygonPoints[i][1]);
+    }
     ctx.closePath();
-    ctx.strokeStyle = "green";
+    ctx.strokeStyle = "blue";
     ctx.lineWidth = 2;
     ctx.stroke();
-
-    ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
-    ctx.fill();
-
-    // Draw draggable points
-    for (const [x, y] of polygonPoints) {
+    
+    // Draw the control points
+    polygonPoints.forEach(([x, y]) => {
         ctx.beginPath();
-        ctx.arc(x, y, POINT_RADIUS, 0, 2 * Math.PI);
-        ctx.fillStyle = "blue";
+        ctx.arc(x, y, POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = "red";
         ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.stroke();
-    }
+    });
 }
 
 function getTransformedMouseCoordinates(e, canvas) {
@@ -627,7 +630,7 @@ async function reSegment() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                image_path: document.getElementById("modalImage").src,
+                image_path: loadedModalImage.src,
                 coordinates: lastRectangleCoords,
                 confidence: confidence
             }),
