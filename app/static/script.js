@@ -308,43 +308,67 @@ async function selectImage(filename, previewImage) {
     noSelectionText.style.display = 'none';
 }
 
+let loadedModalImage = null;
+let originalWidthImg = 0;
+let originalHeightImg = 0;
+
 async function openSegmentationModal(imageSrc, canvas) {
+    
     const modal = document.getElementById("segmentationModal");
-    const modalImage = document.getElementById("modalImage");
+    const imageContainer = document.getElementById("imageContainer");
     const ctx = canvas.getContext("2d");
 
-    // Load the image into the modal
-    modalImage.src = imageSrc;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    imageContainer.innerHTML = "";
+    imageContainer.appendChild(canvas);
 
-    modal.style.display = "flex";
+    // Load the image into the modal
+    loadedModalImage = new window.Image();
 
     // Wait for the image to load
-    modalImage.onload = () => {
+    loadedModalImage.onload = () => {
         setTimeout(() => {
-
-            // Get the original dimensions of the image
-            originalWidth = modalImage.naturalWidth;
-            originalHeight = modalImage.naturalHeight;
-
-            // Get the resized dimensions of the image
-            const resizedWidth = modalImage.clientWidth;
-            const resizedHeight = modalImage.clientHeight;
-
-            // Set canvas dimensions to match the resized image
-            canvas.width = resizedWidth;
-            canvas.height = resizedHeight;
-
-            // Position the canvas exactly over the image
-            canvas.style.width = `${resizedWidth}px`;
-            canvas.style.height = `${resizedHeight}px`;
-
-            // Clear the canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+            originalWidthImg = loadedModalImage.naturalWidth;
+            originalHeightImg = loadedModalImage.naturalHeight;
+            
+            console.log(`Image loaded: ${originalWidthImg}x${originalHeightImg}`);
+            
+            // Calculate appropriate canvas size based on the container
+            const containerWidth = imageContainer.clientWidth;
+            const containerHeight = Math.min(window.innerHeight * 0.7, 600); // Limit height
+            
+            // Calculate scaling to fit in container while maintaining aspect ratio
+            const scaleWidth = containerWidth / originalWidthImg;
+            const scaleHeight = containerHeight / originalHeightImg;
+            const scale = Math.min(scaleWidth, scaleHeight);
+            
+            // Set canvas dimensions
+            const canvasWidth = originalWidthImg * scale;
+            const canvasHeight = originalHeightImg * scale;
+            
+            // Set canvas size
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            canvas.style.width = `${canvasWidth}px`;
+            canvas.style.height = `${canvasHeight}px`;
+            
+            console.log(`Canvas size set to: ${canvasWidth}x${canvasHeight}`);
+            
+            // Draw the image on the canvas
+            ctx.drawImage(loadedModalImage, 0, 0, canvasWidth, canvasHeight);
+            
             // Initialize drawing functionality
-            initializeCanvasDrawing(canvas, ctx);
+            if (typeof initializeCanvasDrawing === 'function') {
+                initializeCanvasDrawing(canvas, ctx);
+            }
         }, 50);
     };
+
+    loadedModalImage.src = imageSrc;
+    
+    // Display the modal
+    modal.style.display = "flex";
 
     // Get Rectangle Coordinates
     document.getElementById("sendToSegment").addEventListener("click", function() {
@@ -367,6 +391,7 @@ async function openSegmentationModal(imageSrc, canvas) {
         document.getElementById("post-segment-text").style.display = "none";
         document.getElementById("postSegmentationControls").style.display = "none";
         interactionMode = "rectangle";
+        loadedModalImage = null;
     });
 
 }

@@ -440,16 +440,14 @@ input[type="color"] {
 
 .modal-content {
     background: var(--background);
-    border: 2px solid var(--buttons-footer);
-    padding: 20px;
-    text-align: center;
-    position: relative;
-    height: 80vh;
-    width: 80vw;
+    border-radius: 8px;
+    max-width: 90%;
+    max-height: 90%;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
 }
 
 .close {
@@ -463,19 +461,19 @@ input[type="color"] {
 
 #imageContainer {
     position: relative;
-    display: inline-block;
-}
-
-#modalImage{
-    height: 44.238vh;
-    width: auto;
-    max-width: 31.458vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0;
+    max-height: 70vh;
+    overflow: hidden;
 }
 
 #imageCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
     cursor: crosshair;
     pointer-events: auto;
 }
