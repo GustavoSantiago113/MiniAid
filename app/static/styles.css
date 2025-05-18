@@ -165,7 +165,6 @@ html{
 
 .action-button{
     background-color: var(--buttons-footer);
-    width: 25.278vw;
     transition: all 0.5s;
     cursor: pointer;
     border-radius: 20px;
@@ -174,14 +173,14 @@ html{
     justify-content: center;
     gap: 1.944vw;
     font-size: 2.344vh;
-    height: 8.789vh;
     text-decoration: none;
     color: var(--text-button);
+    padding: 15px;
     &:hover {
         background-color: var(--button-hover_active-item);
         transform: scale(1.1);
         box-shadow: 0px 10px 10px 0px rgba(41, 115, 115, 70%);
-    }
+    };
 }
 
 /* Crop Image */
@@ -485,6 +484,56 @@ input[type="color"] {
     height: 44.238vh;
     width: auto;
     max-width: 31.458vw;
+}
+
+.slidecontainer {
+  width: 100%;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 15px;
+  border-radius: 5px;
+  background: var(--buttons-footer);
+  outline: none;
+  opacity: 0.7; 
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+}
+
+.slider:hover {
+  opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; 
+  appearance: none;
+  width: 25px; 
+  height: 25px;
+  border-radius: 50%;
+  background: var(--button-hover_active-item);
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 25px;
+  height: 25px; 
+  border-radius: 50%;
+  background: var(--button-hover_active-item);
+  cursor: pointer;
+}
+
+.slider-text{
+    justify-content: space-between;
+    display: flex;
+}
+
+.adjustment-buttons{
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
 }
 
  /* Footer */

@@ -348,20 +348,24 @@ async function openSegmentationModal(imageSrc, canvas) {
 
     // Get Rectangle Coordinates
     document.getElementById("sendToSegment").addEventListener("click", function() {
-        sendImageToSegment(canvas, imageSrc);
+        sendImageToSegment(canvas);
     });
 
     document.getElementById("downloadSegmented").addEventListener("click", function() {
-        segmentImage(imageSrc);
+        segmentImage();
+    });
+
+    document.getElementById("reRunSegmentation").addEventListener("click", function() {
+        reSegment();
     });
 
     // Close Modal
     document.querySelector(".close").addEventListener("click", function() {
         document.getElementById("segmentationModal").style.display = "none";
         document.getElementById("sendToSegment").style.display = "block";
-        document.getElementById("downloadSegmented").style.display = "none";
         document.getElementById("pre-segment-text").style.display = "block";
         document.getElementById("post-segment-text").style.display = "none";
+        document.getElementById("postSegmentationControls").style.display = "none";
         interactionMode = "rectangle";
     });
 
@@ -370,6 +374,7 @@ async function openSegmentationModal(imageSrc, canvas) {
 let startX, startY, endX, endY;
 let originalWidth, originalHeight;
 let interactionMode = "rectangle";
+let lastRectangleCoords = null;
 let isDrawing = false;
 let isDragging = false;
 let draggingPointIndex = -1;
@@ -418,7 +423,7 @@ function initializeCanvasDrawing(canvas, ctx) {
             endX = x;
             endY = y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = "green";
             ctx.lineWidth = 2;
             ctx.strokeRect(startX, startY, endX - startX, endY - startY);
         }
@@ -435,9 +440,7 @@ function initializeCanvasDrawing(canvas, ctx) {
     });
 }
 
-function getRectangleCoordinates(canvas) {
-    const ctx = canvas.getContext("2d");
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+function getRectangleCoordinates() {
 
     if (!startX || !startY || !endX || !endY) {
         return null; // No rectangle drawn
@@ -466,12 +469,12 @@ function getRectangleCoordinates(canvas) {
     };
 }
 
-async function sendImageToSegment(canvas, frame){
+async function sendImageToSegment(canvas){
     const coordinates = getRectangleCoordinates(canvas);
 
     if (coordinates) {
         const button = document.getElementById("sendToSegment");
-
+        lastRectangleCoords = coordinates;
         const originalText = button.innerHTML;
         button.innerHTML = '<span class="loader"></span>';
         button.disabled = true;
@@ -484,7 +487,7 @@ async function sendImageToSegment(canvas, frame){
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ image_path: frame, coordinates: coordinates }),
+                body: JSON.stringify({ image_path: document.getElementById("modalImage").src, coordinates: coordinates }),
             });
             
             const data = await response.json();
@@ -492,9 +495,9 @@ async function sendImageToSegment(canvas, frame){
             if (data.success) {
 
                 document.getElementById("sendToSegment").style.display = "none";
-                document.getElementById("downloadSegmented").style.display = "block";
                 document.getElementById("pre-segment-text").style.display = "none";
                 document.getElementById("post-segment-text").style.display = "block";
+                document.getElementById("postSegmentationControls").style.display = "block";
 
                 const polygon = data.polygon;
                 interactionMode = "polygon";
@@ -573,6 +576,51 @@ function getTransformedMouseCoordinates(e, canvas) {
     return { x, y };
 }
 
+async function reSegment() {
+    
+    if (!lastRectangleCoords) {
+        alert("No rectangle selected.");
+        return;
+    }
+    const button = document.getElementById("reRunSegmentation");
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
+
+    try {
+        // Get confidence value from slider
+        const confidence = parseFloat(document.getElementById("segmentationConfidence").value) / 100;
+
+        // Send the file to the server with new confidence
+        const response = await fetch('/segment-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image_path: document.getElementById("modalImage").src,
+                coordinates: lastRectangleCoords,
+                confidence: confidence
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Clean old polygons and show new ones
+            polygonPoints = [];
+            renderPolygonOnCanvas(canvas, data.polygon);
+        } else {
+            alert("Failed to segment the image.");
+        }
+    } catch (error) {
+        alert("An error occurred while re-running segmentation.");
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
 function getUpdatedPolygonOriginalScale() {
     const modalImage = document.getElementById("modalImage");
     const scaleX = originalWidth / modalImage.clientWidth;
@@ -581,7 +629,7 @@ function getUpdatedPolygonOriginalScale() {
     return polygonPoints.map(([x, y]) => [x * scaleX, y * scaleY]);
 }
 
-async function segmentImage(imagePath){
+async function segmentImage(){
     const coordinates = getUpdatedPolygonOriginalScale();
 
     if (coordinates) {
@@ -599,7 +647,7 @@ async function segmentImage(imagePath){
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ image_path: imagePath, polygon: coordinates }),
+                    body: JSON.stringify({ image_path: document.getElementById("modalImage").src, polygon: coordinates }),
                 });
                 
             if (response.ok) {

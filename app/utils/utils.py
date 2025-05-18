@@ -74,9 +74,9 @@ def generate_pdf(image_path, text_color_dict, output):
 
     c.save()
 
-def get_segmentation_polygon(coordinates, model, source, epsilon_ratio=0.0005):
+def get_segmentation_polygon(coordinates, model, source, epsilon_ratio=0.0005, conf=0.5):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    results = model.predict(source, device=device, bboxes=coordinates, imgsz=1024, conf=0.25)
+    results = model.predict(source, device=device, bboxes=coordinates, imgsz=1024, conf = conf, save=False, verbose=False)
     
     for result in results:
         for c in result:

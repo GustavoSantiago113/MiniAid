@@ -127,7 +127,7 @@ def post_painting_page():
     return render_template("PostPainting.html")
 
 @app.route("/uploadImageFrame", methods=['POST'])
-def video_to_frame():
+def images_upload():
     
     if 'files[]' not in request.files:
         return jsonify({'success': False, 'error': 'No files uploaded'}), 400
@@ -168,9 +168,10 @@ def segment_image():
         int(round(coords_dict['x_max'])),  # x_max
         int(round(coords_dict['y_max']))   # y_max
     ]
-    
+    confidence = data.get('confidence', 0.5)
+
     # Get the image data
-    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file)
+    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, conf=confidence)
 
     # Return the image as a downloadable file
     return jsonify({'success': True, 'polygon': polygon_coords})

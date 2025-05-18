@@ -82,8 +82,24 @@
                 <div class = "action-button" id="sendToSegment">
                     Segment
                 </div>
-                <div class = "action-button" id="downloadSegmented" style="display: none;">
-                    Download
+                <div class = "post-process-controls" id="postSegmentationControls" style="display: none;">
+                    Confidence
+                    <div class="slidecontainer" id="reSegmentSlider">
+                        <input type="range" min="10" max="100" value="50" class="slider" id="segmentationConfidence">
+                    </div>
+                    <div class = "slider-text">
+                        <span>10%</span>
+                        <span id="reRunSegmentationSliderValue"></span>
+                        <span>100%</span>
+                    </div>
+                    <div class = "adjustment-buttons" id="adjustSegmentation">
+                        <div class = "action-button" id="reRunSegmentation">
+                            Re-run segmentation
+                        </div>
+                        <div class = "action-button" id="downloadSegmented">
+                            Download
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -107,6 +123,12 @@
         </div>
     </footer>
     <script>
+        var sliderSeg = document.getElementById("segmentationConfidence");
+        var outputSliderSeg = document.getElementById("reRunSegmentationSliderValue");
+        outputSliderSeg.innerHTML = sliderSeg.value;
+        sliderSeg.oninput = function() {
+            outputSliderSeg.innerHTML = this.value;
+        }
         const previewImage = document.getElementById('preview-image');
         const canvas = document.getElementById("imageCanvas");
         document.getElementById("frameUploadInput").addEventListener("change", function () {
