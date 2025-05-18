@@ -448,6 +448,10 @@ function initializeCanvasDrawing(canvas, ctx) {
             endX = x;
             endY = y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw the image as background
+            if (loadedModalImage) {
+                ctx.drawImage(loadedModalImage, 0, 0, canvas.width, canvas.height);
+            }
             ctx.strokeStyle = "green";
             ctx.lineWidth = 2;
             ctx.strokeRect(startX, startY, endX - startX, endY - startY);
