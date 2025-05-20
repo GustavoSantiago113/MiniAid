@@ -169,6 +169,11 @@ def segment_image():
         int(round(coords_dict['y_max']))   # y_max
     ]
     confidence = data.get('confidence', 0.5)
+    
+    if file.startswith("http"):
+        # Only keep the path after "/static/"
+        file = file.split("/static/")[-1]
+        file = os.path.join("app", "static", file)
 
     # Get the image data
     polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, conf=confidence)
@@ -182,10 +187,10 @@ def download_segmented():
     image_path = data['image_path']
     polygon = data['polygon']
 
-    # If image_path is a URL, extract the filename
-    if image_path.startswith("http") or image_path.startswith("/"):
-        image_path = image_path.split("static/")[-1]
-        image_path = os.path.join("app/static", image_path)
+    if image_path.startswith("http"):
+        # Only keep the path after "/static/"
+        image_path = image_path.split("/static/")[-1]
+        image_path = os.path.join("app", "static", image_path)
 
     # Use the utility to crop and mask the image
     output_img = utils.crop_image_with_polygon(image_path, polygon)

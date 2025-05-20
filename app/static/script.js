@@ -753,14 +753,13 @@ async function segmentImage(){
         button.disabled = true;
 
         try{
-
             // Send the file to the server
             const response = await fetch('/download-segmented', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ image_path: document.getElementById("modalImage").src, polygon: coordinates }),
+                    body: JSON.stringify({ image_path: loadedModalImage.src, polygon: coordinates }),
                 });
                 
             if (response.ok) {
