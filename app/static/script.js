@@ -543,13 +543,8 @@ function redrawCanvas(canvas, ctx) {
     ctx.translate(panOffsetX, panOffsetY);
     ctx.scale(zoomLevel, zoomLevel);
 
-    // Draw the image as background
     if (loadedModalImage) {
-        var width = canvas.width + (zoomLevel * (canvas.width / canvas.height))
-	    var height = canvas.height + zoomLevel
-        var x = 0 - (panOffsetX / canvas.width) * (width - canvas.width)
-	    var y = 0 - (panOffsetY / canvas.height) * (height - canvas.height)
-        ctx.drawImage(loadedModalImage, x, y, width, height);
+        ctx.drawImage(loadedModalImage, 0, 0, canvas.width, canvas.height);
     }
     
     if (interactionMode === "rectangle" && startX !== undefined && endX !== undefined) {
