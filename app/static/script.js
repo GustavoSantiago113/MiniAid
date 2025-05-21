@@ -698,6 +698,16 @@ async function reSegment() {
     button.innerHTML = '<span class="loader"></span>';
     button.disabled = true;
 
+    const qualityMap = {
+      low: 0.001,
+      medium: 0.0005,
+      high: 0.0001
+    };
+
+    const selectElement = document.getElementById("segSmooth");
+    const selectedKey = selectElement.value;
+    const smooth = qualityMap[selectedKey];
+
     try {
         // Get confidence value from slider
         const confidence = parseFloat(document.getElementById("segmentationConfidence").value) / 100;
@@ -711,7 +721,8 @@ async function reSegment() {
             body: JSON.stringify({
                 image_path: loadedModalImage.src,
                 coordinates: lastRectangleCoords,
-                confidence: confidence
+                confidence: confidence,
+                smooth: smooth
             }),
         });
 
@@ -733,12 +744,12 @@ async function reSegment() {
 }
 
 function getUpdatedPolygonOriginalScale() {
-    const scaleX = originalWidthImg / (canvas.width / zoomLevel);
-    const scaleY = originalHeightImg / (canvas.height / zoomLevel);
+    const scaleX = originalWidthImg / canvas.width;
+    const scaleY = originalHeightImg / canvas.height;
 
     return polygonPoints.map(([x, y]) => [
-        (x) * scaleX,
-        (y) * scaleY
+        x * scaleX,
+        y * scaleY
     ]);
 }
 

@@ -74,7 +74,7 @@ def generate_pdf(image_path, text_color_dict, output):
 
     c.save()
 
-def get_segmentation_polygon(coordinates, model, source, epsilon_ratio=0.0005, conf=0.5):
+def get_segmentation_polygon(coordinates, model, source, smooth=0.0005, conf=0.5):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     results = model.predict(source, device=device, bboxes=coordinates, imgsz=1024, conf = conf, save=False, verbose=False)
     
@@ -87,7 +87,7 @@ def get_segmentation_polygon(coordinates, model, source, epsilon_ratio=0.0005, c
             # Convert to numpy array for OpenCV
             poly_np = np.array(polygon, dtype=np.int32)
             # Calculate epsilon (the approximation accuracy)
-            epsilon = epsilon_ratio * cv2.arcLength(poly_np, True)
+            epsilon = smooth * cv2.arcLength(poly_np, True)
             approx = cv2.approxPolyDP(poly_np, epsilon, True)
             # Convert back to list of [x, y]
             simplified = approx.reshape(-1, 2).tolist()

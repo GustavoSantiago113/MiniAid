@@ -169,6 +169,7 @@ def segment_image():
         int(round(coords_dict['y_max']))   # y_max
     ]
     confidence = data.get('confidence', 0.5)
+    smooth = data.get('smooth', 0.0005)
     
     if file.startswith("http"):
         # Only keep the path after "/static/"
@@ -176,7 +177,7 @@ def segment_image():
         file = os.path.join("app", "static", file)
 
     # Get the image data
-    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, conf=confidence)
+    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, conf=confidence, smooth=smooth)
 
     # Return the image as a downloadable file
     return jsonify({'success': True, 'polygon': polygon_coords})
