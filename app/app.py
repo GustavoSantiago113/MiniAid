@@ -203,6 +203,8 @@ def download_segmented():
 
     return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="segmented.png")
 
+
+
 @app.route("/about")
 def about_page():
     return "About"

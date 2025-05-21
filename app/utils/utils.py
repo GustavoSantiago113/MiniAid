@@ -1,4 +1,3 @@
-import io
 import numpy as np
 import scipy.ndimage
 import imageio
@@ -9,6 +8,11 @@ from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
 import cv2
 import torch
+from dust3r.cloud_opt import GlobalAlignerMode, global_aligner
+from dust3r.image_pairs import make_pairs
+from dust3r.inference import inference
+from dust3r.model import AsymmetricCroCo3DStereo
+from dust3r.utils.image import load_images
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -122,3 +126,24 @@ def crop_image_with_polygon(image_path, polygon):
 
     # Convert to PIL Image for Flask send_file
     return PILImage.fromarray(cropped)
+
+def reconstruct_cloud_point(folder_path):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    batch_size = 1
+    schedule = "cosine"
+    lr = 0.01
+    niter = 300
+    model_name = "naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt"
+    model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
+    images = load_images(folder_path, size=512)
+    pairs = make_pairs(images, scene_graph="complete", prefilter=None, symmetrize=True)
+    output = inference(pairs, model, device, batch_size=batch_size)
+    scene = global_aligner(
+        output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer
+    )
+    loss = scene.compute_global_alignment(
+        init="mst", niter=niter, schedule=schedule, lr=lr
+    )
+
+    scene.show()

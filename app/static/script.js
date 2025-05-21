@@ -797,6 +797,59 @@ async function segmentImage(){
     }
 }
 
+async function openReconstructionModal(){
+    
+    const modal = document.getElementById("reconstructionModal");
+    const fileItems = document.querySelectorAll('.file-item:not(.upload-item)');
+    if (fileItems.length === 1) {
+        alert("Please, upload more than 1 image to perform the reconstruction");
+        return;
+    }
+
+    
+    // TODO - send images to reconstruction
+
+    modal.style.display = "flex";
+
+    // TODO - show loading spinning and reconstruction state
+    // TODO - Change to show point cloud and fine tunning
+
+    // TODO - Re-send fine tuning of point cloud
+
+    // TODO - send point cloud to mesh
+    // TODO - Change to show mesh and fine tunning
+    
+    // TODO - Re-send fine tunning of mesh
+
+    // TODO - Download Mesh
+
+    document.querySelectorAll('.modal .close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            this.closest('.modal').style.display = 'none';
+        });
+    });
+}
+
+async function sendToReconstruction(){
+
+}
+
+async function reRendToPointCloud(){
+
+}
+
+async function sendToMesh(){
+
+}
+
+async function reSendToMesh(){
+
+}
+
+async function downloadMesh(){
+    
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".navigation-button").forEach(button => {
         button.addEventListener("mouseenter", function() {
