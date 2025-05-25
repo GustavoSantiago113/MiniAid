@@ -68,8 +68,9 @@
                 <div>
                     <span class="close">&times;</span>
                     <div id="pre-segment-text">
-                        <p>Draw a rectangle around the area to be segmented</p>
-                        <p>If the image does not come as expected, try drawing a broader rectangle</p>
+                        <span>Draw a rectangle around the area to be segmented</span>
+                        <br>
+                        <span>If the image does not come as expected, try drawing a broader rectangle</span>
                     </div>
                     <div id="post-segment-text" style="display: none;">
                         <span>Re-arrange the points to improve the segmentation</span>
@@ -109,8 +110,37 @@
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
+                    <h2 id="pointCloudTitle">Point Cloud</h2>
+                    <div id="reconstructionStatus" style="display:none; text-align:center;">
+                        <div class="loader"></div>
+                        <div id="reconstructionMessage">Starting reconstruction...</div>
+                    </div>
+                    <div id="pointCloud">
+                        <div id="pointCloudViewer" style="width: 100%; height: 500px; display: none;"></div>
+
+                        <label for="outline">Outline Removal:</label>
+                        <select id="outlineRemoval">
+                            <option value="veryLow">Very Low</option>
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="veryHigh">Very High</option>
+                        </select>
+
+                        <div class = "adjustment-buttons">
+                            <div class = "action-button" id="removeOutliers">
+                                Remove Outliers
+                            </div>
+                            <div class = "action-button" id="downloadPC">
+                                Download Point Cloud
+                            </div>
+                            <div class = "action-button" id="makeMesh">
+                                Generate mesh
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
-                Teste
             </div>
         </div>
     </body>

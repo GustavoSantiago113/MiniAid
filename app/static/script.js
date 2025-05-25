@@ -797,45 +797,157 @@ async function segmentImage(){
     }
 }
 
+let reconstructionActive = false;
+
 async function openReconstructionModal(){
     
     const modal = document.getElementById("reconstructionModal");
+    const pcTitle = document.getElementById("pointCloudTitle");
     const fileItems = document.querySelectorAll('.file-item:not(.upload-item)');
     if (fileItems.length === 1) {
         alert("Please, upload more than 1 image to perform the reconstruction");
         return;
     }
 
-    
-    // TODO - send images to reconstruction
-
     modal.style.display = "flex";
 
-    // TODO - show loading spinning and reconstruction state
-    // TODO - Change to show point cloud and fine tunning
+    const statusDiv = document.getElementById("reconstructionStatus");
+    const messageDiv = document.getElementById("reconstructionMessage");
+    const viewerDiv = document.getElementById("pointCloud");
 
-    // TODO - Re-send fine tuning of point cloud
 
-    // TODO - send point cloud to mesh
-    // TODO - Change to show mesh and fine tunning
-    
-    // TODO - Re-send fine tunning of mesh
+    statusDiv.style.display = "block";
+    pcTitle.style.display = "block";
+    messageDiv.textContent = "Starting reconstruction...";
+    viewerDiv.style.display = "none";
 
-    // TODO - Download Mesh
+    let polling = true;
+    function pollProgress() {
+        if (!polling || !reconstructionActive) return;
+        
+        fetch('/reconstruction-progress')
+            .then(res => res.json())
+            .then(data => {
+                const statusDiv = document.getElementById("reconstructionStatus");
+                const messageDiv = document.getElementById("reconstructionMessage");
+                
+                if (data.stage === "cancelled") {
+                    polling = false;
+                    reconstructionActive = false;
+                    return;
+                }
+                
+                statusDiv.style.display = "block";
+                messageDiv.textContent = data.message;
+                
+                if (data.stage === "done") {
+                    polling = false;
+                    messageDiv.textContent = "Reconstruction finished!";
+                    statusDiv.style.display = "none";
+                    messageDiv.style.display = "none";
+                    viewerDiv.style.display = "block";
+                } else {
+                    setTimeout(pollProgress, 1000);
+                }
+            });
+    }
+
+    reconstructionActive = true;
+    try {
+        const response = await fetch('/make-point-cloud', {
+            method: 'POST'
+        });
+       if (response.ok && reconstructionActive) {
+            polling = true;
+            pollProgress();
+        } else {
+            messageDiv.textContent = "Failed to reconstruct point cloud.";
+        }
+    } catch (error) {
+        messageDiv.textContent = "An error occurred during reconstruction.";
+    }
 
     document.querySelectorAll('.modal .close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', function() {
+        closeBtn.addEventListener('click', async function() {
+            reconstructionActive = false;
+            polling = false;
+            
+            // Send cancellation request to backend
+            try {
+                await fetch('/cancel-reconstruction', {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error('Failed to cancel reconstruction:', error);
+            }
+            
             this.closest('.modal').style.display = 'none';
         });
     });
+
+    document.getElementById("removeOutliers").addEventListener("click", function() {
+        reRendToPointCloud();
+    });
+
 }
 
-async function sendToReconstruction(){
+// TODO - Re-send fine tuning of point cloud
 
-}
+// TODO - send point cloud to mesh
+// TODO - Change to show mesh and fine tunning
+
+// TODO - Re-send fine tunning of mesh
+
+// TODO - Download Mesh
 
 async function reRendToPointCloud(){
+    
+    const button = document.getElementById("removeOutliers");
+    const button2 = document.getElementById("downloadPC");
+    const button3 = document.getElementById("makeMesh");
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
+    button2.disabled = true;
+    button3.disabled = true;
 
+    const qualityMap = {
+      veryLow: [10, 2],
+      low: [10, 1],
+      medium: [20, 2],
+      high: [20, 1],
+      veryHigh: [20, 0.5],
+    };
+
+    const selectElement = document.getElementById("outlineRemoval");
+    const selectedKey = selectElement.value;
+    const params = qualityMap[selectedKey];
+
+    try {
+
+        const response = await fetch('/point-cloud-outliers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                parameters: params
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            
+        } else {
+            alert("Failed to remove outliers.");
+        }
+    } catch (error) {
+        alert("An error occurred while re-running segmentation.");
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
 }
 
 async function sendToMesh(){

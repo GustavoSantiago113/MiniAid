@@ -9,12 +9,14 @@ import cv2
 import io
 import atexit
 from ultralytics import SAM
-from base64 import b64encode
+import threading
+import open3d as o3d
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
 app.config['UPLOAD_FOLDER_FRAMES'] = 'app/static/uploads/frames'
 app.config['MODELS'] = 'app/static/models'
+app.config['RECONSTRUCTION'] = 'app/static/reconstruction'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
@@ -32,8 +34,25 @@ def cleanup_upload_folder():
                 shutil.rmtree(file_path)
         except Exception as e:
             print(f'Failed to delete {file_path}. Reason: {e}')
+    
+    for filename in os.listdir(app.config['RECONSTRUCTION']):
+        file_path = os.path.join(app.config['RECONSTRUCTION'], filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'Failed to delete {file_path}. Reason: {e}')
 
 atexit.register(cleanup_upload_folder)
+
+progress_status = {"stage": "idle", "message": "Waiting...", "percent": 0}
+
+def set_progress(stage, message, percent):
+    progress_status["stage"] = stage
+    progress_status["message"] = message
+    progress_status["percent"] = percent
 
 @app.route("/")
 def landing_page():
@@ -203,11 +222,58 @@ def download_segmented():
 
     return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="segmented.png")
 
+reconstruction_thread = None
 
+@app.route("/make-point-cloud", methods=['POST'])
+def point_cloud():
+    global reconstruction_thread
+    images_folder = app.config['UPLOAD_FOLDER_FRAMES']
+
+    def run_reconstruction():
+        if progress_status["stage"] != "cancelled":
+            set_progress("start", "Starting reconstruction...", 0)
+            utils.reconstruct_cloud_point(images_folder, progress_callback=set_progress)
+            if progress_status["stage"] != "cancelled":
+                set_progress("done", "Reconstruction finished!", 100)
+
+    reconstruction_thread = threading.Thread(target=run_reconstruction)
+    reconstruction_thread.start()
+
+    cloud_path = "app/static/reconstruction/point_cloud.ply"
+    pcd = o3d.io.read_point_cloud(cloud_path)
+    pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2)
+    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud.ply", pcd)
+    
+    return jsonify({'success': True})
+
+@app.route("/reconstruction-progress")
+def reconstruction_progress():
+    return jsonify(progress_status)
+
+@app.route("/cancel-reconstruction", methods=['POST'])
+def cancel_reconstruction():
+    global progress_status
+    progress_status["stage"] = "cancelled"
+    progress_status["message"] = "Reconstruction cancelled"
+    progress_status["percent"] = 0
+    return jsonify({'success': True})
+
+@app.route("/point-cloud-outliers", methods=['POST'])
+def remove_outliers():
+    data = request.json
+    params = data.get('parameters')
+
+    cloud_path = "app/static/reconstruction/point_cloud.ply"
+    pcd = o3d.io.read_point_cloud(cloud_path)
+    pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=params[0], std_ratio=params[1])
+    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud.ply", pcd)
+    o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Outliers removed")
+
+    return jsonify({'success': True})
 
 @app.route("/about")
 def about_page():
     return "About"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()

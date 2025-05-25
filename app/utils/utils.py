@@ -127,7 +127,7 @@ def crop_image_with_polygon(image_path, polygon):
     # Convert to PIL Image for Flask send_file
     return PILImage.fromarray(cropped)
 
-def reconstruct_cloud_point(folder_path):
+def reconstruct_cloud_point(folder_path, progress_callback=None):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_size = 1
@@ -136,14 +136,24 @@ def reconstruct_cloud_point(folder_path):
     niter = 300
     model_name = "naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt"
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
+    if progress_callback:
+        progress_callback("loading", "Loading images...", 5)
     images = load_images(folder_path, size=512)
+    if progress_callback:
+        progress_callback("pairing", "Pairing images...", 10)
     pairs = make_pairs(images, scene_graph="complete", prefilter=None, symmetrize=True)
+    if progress_callback:
+        progress_callback("inference", "Running inference...", 30)
     output = inference(pairs, model, device, batch_size=batch_size)
+    if progress_callback:
+        progress_callback("aligning", "Global alignement...", 70)
     scene = global_aligner(
         output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer
     )
     loss = scene.compute_global_alignment(
         init="mst", niter=niter, schedule=schedule, lr=lr
     )
+    if progress_callback:
+        progress_callback("done", "Reconstruction finished!", 100)
 
     scene.show()
