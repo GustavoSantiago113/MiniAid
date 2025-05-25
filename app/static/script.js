@@ -886,21 +886,20 @@ async function openReconstructionModal(){
     });
 
     document.getElementById("removeOutliers").addEventListener("click", function() {
-        reRendToPointCloud();
+        reSendToPointCloud();
+    });
+
+    document.getElementById("makeMesh").addEventListener("click", function() {
+        sendToMesh();
+    });
+
+    document.getElementById("adjustMesh").addEventListener("click", function() {
+        reSendToMesh();
     });
 
 }
 
-// TODO - Re-send fine tuning of point cloud
-
-// TODO - send point cloud to mesh
-// TODO - Change to show mesh and fine tunning
-
-// TODO - Re-send fine tunning of mesh
-
-// TODO - Download Mesh
-
-async function reRendToPointCloud(){
+async function reSendToPointCloud(){
     
     const button = document.getElementById("removeOutliers");
     const button2 = document.getElementById("downloadPC");
@@ -919,7 +918,7 @@ async function reRendToPointCloud(){
       veryHigh: [20, 0.5],
     };
 
-    const selectElement = document.getElementById("outlineRemoval");
+    const selectElement = document.getElementById("outlierRemoval");
     const selectedKey = selectElement.value;
     const params = qualityMap[selectedKey];
 
@@ -943,7 +942,7 @@ async function reRendToPointCloud(){
             alert("Failed to remove outliers.");
         }
     } catch (error) {
-        alert("An error occurred while re-running segmentation.");
+        alert("An error occurred while re-doing point cloud.");
     } finally {
         button.innerHTML = originalText;
         button.disabled = false;
@@ -952,10 +951,79 @@ async function reRendToPointCloud(){
 
 async function sendToMesh(){
 
+    document.getElementById("pointCloudTitle").style.display = "none";
+    document.getElementById("makeMesh").style.display = "none";
+    document.getElementById("removeOutliers").style.display = "none";
+    document.getElementById("downloadPC").style.display = "none";
+    document.getElementById("pointCloudAdjust").style.display = "none";
+
+    document.getElementById("meshTitle").style.display = "block";
+    document.getElementById("adjustMesh").style.display = "block";
+    document.getElementById("downloadMesh").style.display = "block";
+    document.getElementById("meshAdjust").style.display = "block";
+    document.getElementById("meshMakingStatus").style.display = "block";
+
+    try {
+        await fetch('/make-mesh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                depth: 10
+            }),
+        });
+        document.getElementById("meshMakingStatus").style.display = "none";
+    } catch (error) {
+       alert("An error occurred during reconstruction.");
+    }
+
 }
 
 async function reSendToMesh(){
 
+    const button = document.getElementById("adjustMesh");
+    const button2 = document.getElementById("downloadMesh");
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
+    button2.disabled = true;
+
+    const qualityMap = {
+      veryLow: 5,
+      low: 7,
+      medium: 10,
+      high: 13,
+      veryHigh: 15,
+    };
+
+    const selectElement = document.getElementById("depthMesh");
+    const selectedKey = selectElement.value;
+    const depthMesh = qualityMap[selectedKey];
+
+    try {
+
+        await fetch('/make-mesh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                depth: depthMesh
+            }),
+        });
+
+    } catch (error) {
+        alert("An error occurred while re-doing mesh.");
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
+}
+
+async function downloadPC(){
+    
 }
 
 async function downloadMesh(){

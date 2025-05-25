@@ -325,7 +325,7 @@ input[type="color"] {
 .loader {
     width: 2.344vh;
     height: 2.344vh;
-    border: 3px solid var(--text);
+    border: 3px solid var(--button-hover_active-item);
     border-bottom-color: var(--background);
     border-radius: 50%;
     display: inline-block;
@@ -483,7 +483,6 @@ input[type="color"] {
     width: auto;
     max-width: 31.458vw;
 }
-
 
 .adjustment-buttons{
     display: flex;

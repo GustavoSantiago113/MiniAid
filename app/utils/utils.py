@@ -13,6 +13,7 @@ from dust3r.image_pairs import make_pairs
 from dust3r.inference import inference
 from dust3r.model import AsymmetricCroCo3DStereo
 from dust3r.utils.image import load_images
+import open3d as o3d
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -157,3 +158,36 @@ def reconstruct_cloud_point(folder_path, progress_callback=None):
         progress_callback("done", "Reconstruction finished!", 100)
 
     scene.show()
+
+def poisson_reconstruction_from_point_cloud(
+    input_file, output_mesh_file, depth=9, width=0, scale=1.1, linear_fit=False
+):
+
+    pcd = o3d.io.read_point_cloud(input_file)
+
+    if not pcd.has_normals():
+        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
+        pcd.orient_normals_consistent_tangent_plane(k=30)
+
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcd, depth=depth, width=width, scale=scale, linear_fit=linear_fit
+        )
+
+    density_colors = np.asarray(densities)
+    density_colors = density_colors / density_colors.max()
+    density_mesh = o3d.geometry.TriangleMesh()
+    density_mesh.vertices = mesh.vertices
+    density_mesh.triangles = mesh.triangles
+    density_mesh.vertex_colors = o3d.utility.Vector3dVector(
+        np.zeros((len(density_mesh.vertices), 3))
+    )
+
+    vertices_to_remove = densities < np.quantile(densities, 0.1)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
+
+    o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+
+    o3d.io.write_triangle_mesh(output_mesh_file, mesh)
+
+    return mesh

@@ -106,33 +106,61 @@
                 </div>
             </div>
         </div>
+
         <div id="reconstructionModal" class="modal">
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
-                    <h2 id="pointCloudTitle">Point Cloud</h2>
+
+                    <h2 id="pointCloudTitle">Point Cloud Generation</h2>
+                    <h2 id="meshTitle" style="display: none;">Mesh Generation</h2>
+
                     <div id="reconstructionStatus" style="display:none; text-align:center;">
                         <div class="loader"></div>
                         <div id="reconstructionMessage">Starting reconstruction...</div>
                     </div>
+
+                    <div id="meshMakingStatus" style="display:none; text-align:center;">
+                        <div class="loader"></div>
+                        <span>Making Mesh...</span>
+                    </div>
+
                     <div id="pointCloud">
-                        <div id="pointCloudViewer" style="width: 100%; height: 500px; display: none;"></div>
 
-                        <label for="outline">Outline Removal:</label>
-                        <select id="outlineRemoval">
-                            <option value="veryLow">Very Low</option>
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="veryHigh">Very High</option>
-                        </select>
+                        <div id="pointCloudAdjust">
+                            <label for="outlier">Outlier Removal:</label>
+                            <select id="outlierRemoval">
+                                <option value="veryLow">Very Low</option>
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="veryHigh">Very High</option>
+                            </select>
+                        </div>
 
+                        <div id="meshAdjust" style="display: none;">
+                            <label for="depthMesh">Mesh Details:</label>
+                            <select id="depthMesh">
+                                <option value="veryLow">Very Low</option>
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="veryHigh">Very High</option>
+                            </select>
+                        </div>
+                        
                         <div class = "adjustment-buttons">
                             <div class = "action-button" id="removeOutliers">
                                 Remove Outliers
                             </div>
+                            <div class = "action-button" id="adjustMesh" style="display: none;">
+                                Adjust Mesh
+                            </div>
                             <div class = "action-button" id="downloadPC">
                                 Download Point Cloud
+                            </div>
+                            <div class = "action-button" id="downloadMesh" style="display: none;">
+                                Download Mesh
                             </div>
                             <div class = "action-button" id="makeMesh">
                                 Generate mesh
@@ -143,6 +171,7 @@
                 </div>
             </div>
         </div>
+
     </body>
     <footer>
         <div class = "footer">

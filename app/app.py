@@ -271,6 +271,18 @@ def remove_outliers():
 
     return jsonify({'success': True})
 
+@app.route("/make-mesh", methods=['POST'])
+def make_mesh():
+
+    data = request.json
+    depth = data.get('depth', 10)
+
+    cloud_path = "app/static/reconstruction/point_cloud.ply"
+    mesh_path = "app/static/reconstruction/reconstruction.ply"
+    utils.poisson_reconstruction_from_point_cloud(cloud_path, mesh_path, depth=depth)
+
+    return jsonify({'success': True})
+
 @app.route("/about")
 def about_page():
     return "About"
