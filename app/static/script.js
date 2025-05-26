@@ -897,6 +897,14 @@ async function openReconstructionModal(){
         reSendToMesh();
     });
 
+    document.getElementById("downloadPC").addEventListener("click", function() {
+        downloadPC();
+    });
+
+    document.getElementById("downloadMesh").addEventListener("click", function() {
+        downloadMesh();
+    });
+
 }
 
 async function reSendToPointCloud(){
@@ -963,6 +971,9 @@ async function sendToMesh(){
     document.getElementById("meshAdjust").style.display = "block";
     document.getElementById("meshMakingStatus").style.display = "block";
 
+    document.getElementById("adjustMesh").disabled = true;
+    document.getElementById("downloadMesh").disabled = true;
+
     try {
         await fetch('/make-mesh', {
             method: 'POST',
@@ -1022,12 +1033,46 @@ async function reSendToMesh(){
 
 }
 
-async function downloadPC(){
-    
+async function downloadPC() {
+    try {
+        const response = await fetch('/download-point-cloud');
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "point_cloud.ply";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert("Failed to download point cloud.");
+        }
+    } catch (error) {
+        alert("An error occurred while downloading the point cloud.");
+    }
 }
 
-async function downloadMesh(){
-    
+async function downloadMesh() {
+    try {
+        const response = await fetch('/download-mesh');
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "reconstruction.ply";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert("Failed to download mesh.");
+        }
+    } catch (error) {
+        alert("An error occurred while downloading the mesh.");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function () {

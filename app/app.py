@@ -283,6 +283,16 @@ def make_mesh():
 
     return jsonify({'success': True})
 
+@app.route("/download-point-cloud", methods=["GET"])
+def download_point_cloud():
+    file_path = "static/reconstruction/point_cloud.ply"
+    return send_file(file_path, as_attachment=True, download_name="point_cloud.ply")
+
+@app.route("/download-mesh", methods=["GET"])
+def download_mesh():
+    file_path = "static/reconstruction/reconstruction.ply"
+    return send_file(file_path, as_attachment=True, download_name="reconstruction.ply")
+
 @app.route("/about")
 def about_page():
     return "About"
