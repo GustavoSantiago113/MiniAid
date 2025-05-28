@@ -295,7 +295,7 @@ def download_mesh():
 
 @app.route("/about")
 def about_page():
-    return "About"
+    return render_template('About.html')
 
 if __name__ == "__main__":
     app.run()

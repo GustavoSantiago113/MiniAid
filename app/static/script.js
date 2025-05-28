@@ -1099,11 +1099,11 @@ document.addEventListener("DOMContentLoaded", function () {
             let image = document.getElementById("landingImage");
 
             // Only reset if the image is not already the default
-            if (image.src !== "../static/main.png") {
+            if (image.src !== "../static/images/main.png") {
                 image.style.opacity = 0; // Fade out
 
                 setTimeout(() => {
-                    image.src = "../static/main.png"; // Reset to default image
+                    image.src = "../static/images/main.png"; // Reset to default image
                     image.style.animation = "none"; // Reset animation
                     void image.offsetWidth; // Trick to restart animation
                     image.style.animation = "slideFromRight 1.5s ease-out forwards";

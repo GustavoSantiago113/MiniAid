@@ -490,6 +490,50 @@ input[type="color"] {
     gap: 15px;
 }
 
+/* About */
+.container-about {
+    margin: 0 auto;
+    padding-left: 15vh;
+    padding-right: 15vh;
+}
+
+.section.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.section.row.reverse {
+
+}
+
+.text {
+  width: 60%;
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 10px;
+}
+
+.image-about {
+  width: 35%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+}
+
+.image-about img {
+  max-width: 100%;
+  height: auto;
+}
+
+hr {
+  border: 1px solid var(--buttons-footer);
+  margin: 40px 0;
+}
+
  /* Footer */
 .footer {
     position: fixed;
