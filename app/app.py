@@ -175,6 +175,19 @@ def post_painting_frames():
     
     return render_template('PostPaintingFrames.html', frames=frames)
 
+@app.route("/delete-all-images", methods=["POST"])
+def delete_all_images():
+    folder_path = app.config['UPLOAD_FOLDER_FRAMES']
+    try:
+        # Delete all files in the folder
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        return jsonify({"success": True, "message": "All images deleted successfully."})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Failed to delete images: {str(e)}"}), 500
+
 @app.route("/segment-image", methods=['POST'])
 def segment_image():
 
@@ -226,24 +239,32 @@ reconstruction_thread = None
 
 @app.route("/make-point-cloud", methods=['POST'])
 def point_cloud():
-    global reconstruction_thread
+    global reconstruction_thread, progress_status
+
+    # Reset progress status
+    progress_status = {"stage": "idle", "message": "Waiting...", "percent": 0}
+
+    # Check if a reconstruction thread is already running
+    if reconstruction_thread and reconstruction_thread.is_alive():
+        return jsonify({'success': False, 'message': 'Reconstruction is already in progress.'}), 400
+
     images_folder = app.config['UPLOAD_FOLDER_FRAMES']
 
     def run_reconstruction():
-        if progress_status["stage"] != "cancelled":
+        try:
             set_progress("start", "Starting reconstruction...", 0)
             utils.reconstruct_cloud_point(images_folder, progress_callback=set_progress)
             if progress_status["stage"] != "cancelled":
                 set_progress("done", "Reconstruction finished!", 100)
+        finally:
+            # Reset the thread after completion
+            global reconstruction_thread
+            reconstruction_thread = None
 
+    # Start a new reconstruction thread
     reconstruction_thread = threading.Thread(target=run_reconstruction)
     reconstruction_thread.start()
 
-    cloud_path = "app/static/reconstruction/point_cloud.ply"
-    pcd = o3d.io.read_point_cloud(cloud_path)
-    pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2)
-    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud.ply", pcd)
-    
     return jsonify({'success': True})
 
 @app.route("/reconstruction-progress")

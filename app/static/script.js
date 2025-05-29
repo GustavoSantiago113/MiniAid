@@ -288,6 +288,30 @@ async function sendMoreImageToFrames(){
     }
 }
 
+async function deleteAllImages() {
+    if (!confirm("Are you sure you want to delete all images? This action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/delete-all-images', {
+            method: 'POST',
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert(data.message);
+            // Optionally reload the page to reflect changes
+            window.location.reload();
+        } else {
+            alert(data.message || "Failed to delete images.");
+        }
+    } catch (error) {
+        alert("An error occurred while deleting the images.");
+        console.error(error);
+    }
+}
+
 async function selectImage(filename, previewImage) {
     // Update the selected file in UI
     const fileItems = document.querySelectorAll('.file-item');
@@ -815,37 +839,29 @@ async function openReconstructionModal(){
     const messageDiv = document.getElementById("reconstructionMessage");
     const viewerDiv = document.getElementById("pointCloud");
 
-
     statusDiv.style.display = "block";
     pcTitle.style.display = "block";
     messageDiv.textContent = "Starting reconstruction...";
     viewerDiv.style.display = "none";
 
     let polling = true;
+
     function pollProgress() {
         if (!polling || !reconstructionActive) return;
-        
+
         fetch('/reconstruction-progress')
             .then(res => res.json())
             .then(data => {
-                const statusDiv = document.getElementById("reconstructionStatus");
-                const messageDiv = document.getElementById("reconstructionMessage");
-                
-                if (data.stage === "cancelled") {
-                    polling = false;
-                    reconstructionActive = false;
-                    return;
-                }
-                
-                statusDiv.style.display = "block";
                 messageDiv.textContent = data.message;
-                
+
                 if (data.stage === "done") {
                     polling = false;
                     messageDiv.textContent = "Reconstruction finished!";
                     statusDiv.style.display = "none";
-                    messageDiv.style.display = "none";
                     viewerDiv.style.display = "block";
+                } else if (data.stage === "cancelled") {
+                    polling = false;
+                    messageDiv.textContent = "Reconstruction cancelled.";
                 } else {
                     setTimeout(pollProgress, 1000);
                 }
@@ -857,11 +873,12 @@ async function openReconstructionModal(){
         const response = await fetch('/make-point-cloud', {
             method: 'POST'
         });
-       if (response.ok && reconstructionActive) {
+        if (response.ok && reconstructionActive) {
             polling = true;
             pollProgress();
         } else {
-            messageDiv.textContent = "Failed to reconstruct point cloud.";
+            const data = await response.json();
+            messageDiv.textContent = data.message || "Failed to start reconstruction.";
         }
     } catch (error) {
         messageDiv.textContent = "An error occurred during reconstruction.";
@@ -871,7 +888,7 @@ async function openReconstructionModal(){
         closeBtn.addEventListener('click', async function() {
             reconstructionActive = false;
             polling = false;
-            
+
             // Send cancellation request to backend
             try {
                 await fetch('/cancel-reconstruction', {
@@ -880,7 +897,7 @@ async function openReconstructionModal(){
             } catch (error) {
                 console.error('Failed to cancel reconstruction:', error);
             }
-            
+
             this.closest('.modal').style.display = 'none';
         });
     });
@@ -903,6 +920,25 @@ async function openReconstructionModal(){
 
     document.getElementById("downloadMesh").addEventListener("click", function() {
         downloadMesh();
+    });
+
+    document.getElementById("returnToPointCloud").addEventListener("click", function () {
+        // Hide mesh-related elements
+        document.getElementById("meshTitle").style.display = "none";
+        document.getElementById("adjustMesh").style.display = "none";
+        document.getElementById("downloadMesh").style.display = "none";
+        document.getElementById("meshAdjust").style.display = "none";
+        document.getElementById("meshMakingStatus").style.display = "none";
+
+        // Show point cloud-related elements
+        document.getElementById("pointCloudTitle").style.display = "block";
+        document.getElementById("makeMesh").style.display = "block";
+        document.getElementById("removeOutliers").style.display = "block";
+        document.getElementById("downloadPC").style.display = "block";
+        document.getElementById("pointCloudAdjust").style.display = "block";
+
+        // Hide the return button
+        this.style.display = "none";
     });
 
 }
@@ -970,6 +1006,8 @@ async function sendToMesh(){
     document.getElementById("downloadMesh").style.display = "block";
     document.getElementById("meshAdjust").style.display = "block";
     document.getElementById("meshMakingStatus").style.display = "block";
+
+     document.getElementById("returnToPointCloud").style.display = "block";
 
     document.getElementById("adjustMesh").disabled = true;
     document.getElementById("downloadMesh").disabled = true;

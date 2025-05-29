@@ -38,9 +38,14 @@
                         <div onclick="document.getElementById('frameUploadInput').click();" id="reUploadImage">
                             <img src="../static/icons/export.png" class="button-icon">
                             <span>Upload more images</span>
-                        </div>          
+                        </div>
                     </form>
                 </div>
+                <div class="file-item delete-item">
+                    <div onclick="deleteAllImages();" id="deleteAllImages">
+                        <span>Delete all images</span>
+                    </div>
+                </div> 
             </div>
 
             <div class="preview-section">
@@ -111,6 +116,8 @@
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
+                    
+                    <button id="returnToPointCloud" style="display: none;">Return</button>
 
                     <h2 id="pointCloudTitle">Point Cloud Generation</h2>
                     <h2 id="meshTitle" style="display: none;">Mesh Generation</h2>
