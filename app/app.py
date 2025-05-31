@@ -106,9 +106,15 @@ def crop_image():
     cropped_filename = f"cropped_{filename}"
     cropped_path = os.path.join(app.config['UPLOAD_FOLDER'], cropped_filename)
 
+    # Convert to RGB if image has alpha channel before saving as JPEG
+    if img.mode in ("RGBA", "LA"):
+        img = img.convert("RGB")
     img.save(cropped_path)
 
     image = utils.createSketch(cropped_path)
+    # Ensure the image is in a format compatible with OpenCV (BGR, uint8)
+    if len(image.shape) == 3 and image.shape[2] == 4:
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
     cv2.imwrite(cropped_path, image)
 
     # Redirect to the color page with the filename
