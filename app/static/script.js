@@ -720,8 +720,6 @@ async function reSegment() {
     const smooth = qualityMap[selectedKey];
 
     try {
-        // Get confidence value from slider
-        const confidence = parseFloat(document.getElementById("segmentationConfidence").value) / 100;
 
         // Send the file to the server with new confidence
         const response = await fetch('/segment-image', {
@@ -732,7 +730,6 @@ async function reSegment() {
             body: JSON.stringify({
                 image_path: loadedModalImage.src,
                 coordinates: lastRectangleCoords,
-                confidence: confidence,
                 smooth: smooth
             }),
         });

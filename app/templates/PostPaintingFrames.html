@@ -90,8 +90,6 @@
                     Segment
                 </div>
                 <div class = "post-process-controls" id="postSegmentationControls" style="display: none;">
-                    <label for="segConf">Confidence (%):</label>
-                    <input type="number" id="segmentationConfidence" name="segConf" min="10" max="100" value="50" />
 
                     <label for="smooth">Counter smoothness:</label>
                     <select id="segSmooth">
@@ -199,7 +197,7 @@
         document.getElementById("frameUploadInput").addEventListener("change", function () {
             sendMoreImageToFrames();
         });
-        
+
         document.getElementById("sendToSegment").addEventListener("click", function() {
             sendImageToSegment(canvas);
         });
