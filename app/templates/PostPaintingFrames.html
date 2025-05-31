@@ -199,5 +199,17 @@
         document.getElementById("frameUploadInput").addEventListener("change", function () {
             sendMoreImageToFrames();
         });
+        
+        document.getElementById("sendToSegment").addEventListener("click", function() {
+            sendImageToSegment(canvas);
+        });
+
+        document.getElementById("downloadSegmented").addEventListener("click", function() {
+            segmentImage();
+        });
+
+        document.getElementById("reRunSegmentation").addEventListener("click", function() {
+            reSegment();
+        });
     </script>
 </html>

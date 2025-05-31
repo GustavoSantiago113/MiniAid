@@ -413,19 +413,6 @@ async function openSegmentationModal(imageSrc, canvas) {
     // Display the modal
     modal.style.display = "flex";
 
-    // Get Rectangle Coordinates
-    document.getElementById("sendToSegment").addEventListener("click", function() {
-        sendImageToSegment(canvas);
-    });
-
-    document.getElementById("downloadSegmented").addEventListener("click", function() {
-        segmentImage();
-    });
-
-    document.getElementById("reRunSegmentation").addEventListener("click", function() {
-        reSegment();
-    });
-
     // Close Modal
     document.querySelector(".close").addEventListener("click", function() {
         document.getElementById("segmentationModal").style.display = "none";

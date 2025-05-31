@@ -22,7 +22,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
 os.makedirs(app.config['MODELS'], exist_ok=True)
 
-#model = SAM(os.path.join(app.config['MODELS'], "mobile_sam.pt"))
 model = SAM(os.path.join(app.config['MODELS'], "sam2_l.pt"))
 
 def cleanup_upload_folder():

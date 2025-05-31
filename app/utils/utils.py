@@ -14,6 +14,7 @@ from dust3r.inference import inference
 from dust3r.model import AsymmetricCroCo3DStereo
 from dust3r.utils.image import load_images
 import open3d as o3d
+import gc
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -81,12 +82,14 @@ def generate_pdf(image_path, text_color_dict, output):
 
 def get_segmentation_polygon(coordinates, model, source, smooth=0.0005, conf=0.5):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    results = model.predict(source, device=device, bboxes=coordinates, imgsz=1024, conf = conf, save=False, verbose=False)
+
+    with torch.no_grad():
+        results = model(source, device=device, bboxes=coordinates, imgsz=1024, conf=conf, save=False, verbose=False)
     
     for result in results:
         for c in result:
             # Extract the polygon coordinates
-            polygon = c.masks.xy.pop().astype(int).tolist()
+            polygon = c.masks.xy[0].astype(int).tolist()
             if not polygon:
                 continue
             # Convert to numpy array for OpenCV
@@ -98,7 +101,6 @@ def get_segmentation_polygon(coordinates, model, source, smooth=0.0005, conf=0.5
             simplified = approx.reshape(-1, 2).tolist()
             return simplified
 
-    # If no results, return an empty list
     return []
 
 def crop_image_with_polygon(image_path, polygon):
