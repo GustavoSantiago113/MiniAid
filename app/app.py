@@ -264,6 +264,10 @@ def point_cloud():
             scene.show()
             if progress_status["stage"] != "cancelled":
                 set_progress("done", "Reconstruction finished!", 100)
+        except:
+            cloud_path = "app/static/reconstruction/point_cloud.ply"
+            pcd = o3d.io.read_point_cloud(cloud_path)
+            o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Reconstructed")
         finally:
             # Reset the thread after completion
             global reconstruction_thread
