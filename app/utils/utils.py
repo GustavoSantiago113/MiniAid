@@ -135,8 +135,10 @@ def crop_image_with_polygon(image_path, polygon):
     # Convert to PIL Image for Flask send_file
     return PILImage.fromarray(cropped)
 
-def reconstruct_cloud_point(folder_path, progress_callback=None):
-    
+def reconstruct_cloud_point(folder_path, progress_callback=None, check_cancelled=None):
+    if check_cancelled and check_cancelled():
+        return None
+        
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_size = 1
     schedule = "cosine"
@@ -144,23 +146,45 @@ def reconstruct_cloud_point(folder_path, progress_callback=None):
     niter = 300
     model_name = "naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt"
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
+
     if progress_callback:
         progress_callback("loading", "Loading images...", 5)
+    if check_cancelled and check_cancelled():
+        return None
+
     images = load_images(folder_path, size=512)
+    
     if progress_callback:
         progress_callback("pairing", "Pairing images...", 10)
+    if check_cancelled and check_cancelled():
+        return None
+
     pairs = make_pairs(images, scene_graph="complete", prefilter=None, symmetrize=True)
+    
     if progress_callback:
         progress_callback("inference", "Running inference...", 30)
+    if check_cancelled and check_cancelled():
+        return None
+
     output = inference(pairs, model, device, batch_size=batch_size)
+    
+    if check_cancelled and check_cancelled():
+        return None
+
     if progress_callback:
         progress_callback("aligning", "Global alignement...", 70)
+    
     scene = global_aligner(
         output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer
     )
+    
+    if check_cancelled and check_cancelled():
+        return None
+
     loss = scene.compute_global_alignment(
         init="mst", niter=niter, schedule=schedule, lr=lr
     )
+    
     if progress_callback:
         progress_callback("done", "Reconstruction finished!", 100)
 

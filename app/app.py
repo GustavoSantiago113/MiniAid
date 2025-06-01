@@ -243,33 +243,51 @@ def download_segmented():
     return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="segmented.png")
 
 reconstruction_thread = None
+is_reconstruction_cancelled = False
 
 @app.route("/make-point-cloud", methods=['POST'])
 def point_cloud():
-    global reconstruction_thread, progress_status
+    global reconstruction_thread, progress_status, is_reconstruction_cancelled
 
-    # Reset progress status
     progress_status = {"stage": "idle", "message": "Waiting...", "percent": 0}
+    is_reconstruction_cancelled = False
 
-    # Check if a reconstruction thread is already running
     if reconstruction_thread and reconstruction_thread.is_alive():
         return jsonify({'success': False, 'message': 'Reconstruction is already in progress.'}), 400
 
     images_folder = app.config['UPLOAD_FOLDER_FRAMES']
 
     def run_reconstruction():
+        global is_reconstruction_cancelled
         try:
             set_progress("start", "Starting reconstruction...", 0)
-            scene = utils.reconstruct_cloud_point(images_folder, progress_callback=set_progress)
+            
+            # Check cancellation at key points
+            if is_reconstruction_cancelled:
+                set_progress("cancelled", "Reconstruction cancelled", 0)
+                return
+
+            scene = utils.reconstruct_cloud_point(
+                images_folder, 
+                progress_callback=set_progress,
+                check_cancelled=lambda: is_reconstruction_cancelled
+            )
+
+            if is_reconstruction_cancelled:
+                set_progress("cancelled", "Reconstruction cancelled", 0)
+                return
+
             scene.show()
-            if progress_status["stage"] != "cancelled":
+            
+            if not is_reconstruction_cancelled:
                 set_progress("done", "Reconstruction finished!", 100)
-        except:
+        except Exception as e:
             cloud_path = "app/static/reconstruction/point_cloud.ply"
             pcd = o3d.io.read_point_cloud(cloud_path)
             o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Reconstructed")
+            if not is_reconstruction_cancelled:
+                set_progress("error", f"Error during reconstruction: {str(e)}", 0)
         finally:
-            # Reset the thread after completion
             global reconstruction_thread
             reconstruction_thread = None
 
@@ -285,7 +303,8 @@ def reconstruction_progress():
 
 @app.route("/cancel-reconstruction", methods=['POST'])
 def cancel_reconstruction():
-    global progress_status
+    global progress_status, is_reconstruction_cancelled
+    is_reconstruction_cancelled = True
     progress_status["stage"] = "cancelled"
     progress_status["message"] = "Reconstruction cancelled"
     progress_status["percent"] = 0
