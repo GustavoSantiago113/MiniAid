@@ -99,8 +99,13 @@ def get_segmentation_polygon(coordinates, model, source, smooth=0.0005):
             approx = cv2.approxPolyDP(poly_np, epsilon, True)
             # Convert back to list of [x, y]
             simplified = approx.reshape(-1, 2).tolist()
+            del results
+            torch.cuda.empty_cache()
             return simplified
 
+    # If no results, return an empty list
+    del results
+    torch.cuda.empty_cache()
     return []
 
 def crop_image_with_polygon(image_path, polygon):
@@ -159,7 +164,7 @@ def reconstruct_cloud_point(folder_path, progress_callback=None):
     if progress_callback:
         progress_callback("done", "Reconstruction finished!", 100)
 
-    scene.show()
+    return scene
 
 def poisson_reconstruction_from_point_cloud(
     input_file, output_mesh_file, depth=9, width=0, scale=1.1, linear_fit=False

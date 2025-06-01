@@ -4,6 +4,7 @@ import shutil
 from flask import Flask, request, render_template, jsonify, send_file
 import os
 from PIL import Image
+import torch
 from utils import utils
 import cv2
 import io
@@ -259,7 +260,8 @@ def point_cloud():
     def run_reconstruction():
         try:
             set_progress("start", "Starting reconstruction...", 0)
-            utils.reconstruct_cloud_point(images_folder, progress_callback=set_progress)
+            scene = utils.reconstruct_cloud_point(images_folder, progress_callback=set_progress)
+            scene.show()
             if progress_status["stage"] != "cancelled":
                 set_progress("done", "Reconstruction finished!", 100)
         finally:
@@ -270,7 +272,7 @@ def point_cloud():
     # Start a new reconstruction thread
     reconstruction_thread = threading.Thread(target=run_reconstruction)
     reconstruction_thread.start()
-
+    
     return jsonify({'success': True})
 
 @app.route("/reconstruction-progress")
@@ -293,7 +295,7 @@ def remove_outliers():
     cloud_path = "app/static/reconstruction/point_cloud.ply"
     pcd = o3d.io.read_point_cloud(cloud_path)
     pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=params[0], std_ratio=params[1])
-    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud.ply", pcd)
+    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud_temp.ply", pcd)
     o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Outliers removed")
 
     return jsonify({'success': True})
@@ -304,7 +306,10 @@ def make_mesh():
     data = request.json
     depth = data.get('depth', 10)
 
-    cloud_path = "app/static/reconstruction/point_cloud.ply"
+    if(os.path.exists("app/static/reconstruction/point_cloud_temp.ply")):
+        cloud_path = "app/static/reconstruction/point_cloud_temp.ply"
+    else:
+        cloud_path = "app/static/reconstruction/point_cloud.ply"
     mesh_path = "app/static/reconstruction/reconstruction.ply"
     utils.poisson_reconstruction_from_point_cloud(cloud_path, mesh_path, depth=depth)
 
@@ -312,11 +317,15 @@ def make_mesh():
 
 @app.route("/download-point-cloud", methods=["GET"])
 def download_point_cloud():
-    file_path = "static/reconstruction/point_cloud.ply"
-    return send_file(file_path, as_attachment=True, download_name="point_cloud.ply")
+    if(os.path.exists("app/static/reconstruction/point_cloud_temp.ply")):
+        cloud_path = "app/static/reconstruction/point_cloud_temp.ply"
+    else:
+        cloud_path = "app/static/reconstruction/point_cloud.ply"
+    return send_file(cloud_path, as_attachment=True, download_name="point_cloud.ply")
 
 @app.route("/download-mesh", methods=["GET"])
 def download_mesh():
+    
     file_path = "static/reconstruction/reconstruction.ply"
     return send_file(file_path, as_attachment=True, download_name="reconstruction.ply")
 

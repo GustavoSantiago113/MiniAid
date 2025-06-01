@@ -886,26 +886,6 @@ async function openReconstructionModal(){
         });
     });
 
-    document.getElementById("removeOutliers").addEventListener("click", function() {
-        reSendToPointCloud();
-    });
-
-    document.getElementById("makeMesh").addEventListener("click", function() {
-        sendToMesh();
-    });
-
-    document.getElementById("adjustMesh").addEventListener("click", function() {
-        reSendToMesh();
-    });
-
-    document.getElementById("downloadPC").addEventListener("click", function() {
-        downloadPC();
-    });
-
-    document.getElementById("downloadMesh").addEventListener("click", function() {
-        downloadMesh();
-    });
-
     document.getElementById("returnToPointCloud").addEventListener("click", function () {
         // Hide mesh-related elements
         document.getElementById("meshTitle").style.display = "none";
@@ -942,8 +922,8 @@ async function reSendToPointCloud(){
       veryLow: [10, 2],
       low: [10, 1],
       medium: [20, 2],
-      high: [20, 1],
-      veryHigh: [20, 0.5],
+      high: [30, 1],
+      veryHigh: [30, 0.5],
     };
 
     const selectElement = document.getElementById("outlierRemoval");

@@ -197,7 +197,7 @@
         document.getElementById("frameUploadInput").addEventListener("change", function () {
             sendMoreImageToFrames();
         });
-
+        
         document.getElementById("sendToSegment").addEventListener("click", function() {
             sendImageToSegment(canvas);
         });
@@ -208,6 +208,26 @@
 
         document.getElementById("reRunSegmentation").addEventListener("click", function() {
             reSegment();
+        });
+
+        document.getElementById("removeOutliers").addEventListener("click", function() {
+            reSendToPointCloud();
+        });
+
+        document.getElementById("makeMesh").addEventListener("click", function() {
+            sendToMesh();
+        });
+
+        document.getElementById("adjustMesh").addEventListener("click", function() {
+            reSendToMesh();
+        });
+
+        document.getElementById("downloadPC").addEventListener("click", function() {
+            downloadPC();
+        });
+
+        document.getElementById("downloadMesh").addEventListener("click", function() {
+            downloadMesh();
         });
     </script>
 </html>
