@@ -32,19 +32,15 @@
                     <span>{{ frame }}</span>
                 </div>
                 {% endfor %}
-                <div class="file-item upload-item">
+                <div class="file-item upload-item" onclick="document.getElementById('frameUploadInput').click();" id="reUploadImage">
                     <form id="reUploadFormImage">
                         <input id="frameUploadInput" type="file" multiple accept="image/*" style="display:none;" required>
-                        <div onclick="document.getElementById('frameUploadInput').click();" id="reUploadImage">
-                            <img src="../static/icons/export.png" class="button-icon">
-                            <span>Upload more images</span>
-                        </div>
+                        <img src="../static/icons/export.png" class="button-icon">
+                        <span>Upload more images</span>
                     </form>
                 </div>
-                <div class="file-item delete-item">
-                    <div onclick="deleteAllImages();" id="deleteAllImages">
-                        <span>Delete all images</span>
-                    </div>
+                <div class="file-item delete-item" onclick="deleteAllImages();" id="deleteAllImages">
+                    <span>Delete all images</span>
                 </div> 
             </div>
 
@@ -100,9 +96,11 @@
 
                     <div class = "adjustment-buttons" id="adjustSegmentation">
                         <div class = "action-button" id="reRunSegmentation">
+                            <img src="../static/icons/reRun.png" class="button-icon">
                             Re-run segmentation
                         </div>
                         <div class = "action-button" id="downloadSegmented">
+                            <img src="../static/icons/download.png" class="button-icon">
                             Download
                         </div>
                     </div>
@@ -156,18 +154,23 @@
                         
                         <div class = "adjustment-buttons">
                             <div class = "action-button" id="removeOutliers">
+                                <img src="../static/icons/reRun.png" class="button-icon">
                                 Remove Outliers
                             </div>
                             <div class = "action-button" id="adjustMesh" style="display: none;">
+                                <img src="../static/icons/reRun.png" class="button-icon">
                                 Adjust Mesh
                             </div>
                             <div class = "action-button" id="downloadPC">
+                                <img src="../static/icons/download.png" class="button-icon">
                                 Download Point Cloud
                             </div>
                             <div class = "action-button" id="downloadMesh" style="display: none;">
+                                <img src="../static/icons/download.png" class="button-icon">
                                 Download Mesh
                             </div>
                             <div class = "action-button" id="makeMesh">
+                                <img src="../static/icons/sculpture.png" class="button-icon">
                                 Generate mesh
                             </div>
                         </div>
