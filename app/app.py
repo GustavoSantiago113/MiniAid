@@ -4,7 +4,6 @@ import shutil
 from flask import Flask, request, render_template, jsonify, send_file
 import os
 from PIL import Image
-import torch
 from utils import utils
 import cv2
 import io

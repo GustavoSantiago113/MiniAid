@@ -14,7 +14,6 @@ from dust3r.inference import inference
 from dust3r.model import AsymmetricCroCo3DStereo
 from dust3r.utils.image import load_images
 import open3d as o3d
-import gc
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
