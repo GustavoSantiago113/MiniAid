@@ -35,7 +35,6 @@
                 <div class="file-item upload-item" onclick="document.getElementById('frameUploadInput').click();" id="reUploadImage">
                     <form id="reUploadFormImage">
                         <input id="frameUploadInput" type="file" multiple accept="image/*" style="display:none;" required>
-                        <img src="../static/icons/export.png" class="button-icon">
                         <span>Upload more images</span>
                     </form>
                 </div>
@@ -82,13 +81,13 @@
                 <div id="imageContainer">
                     <canvas id="imageCanvas"></canvas>
                 </div>
-                <div class = "action-button" id="sendToSegment">
+                <div class = "action-button" id="sendToSegment" style="text-align: center;">
                     Segment
                 </div>
                 <div class = "post-process-controls" id="postSegmentationControls" style="display: none;">
 
                     <label for="smooth">Counter smoothness:</label>
-                    <select id="segSmooth">
+                    <select id="segSmooth" class="custom-select">
                         <option value="low">Low</option>
                         <option value="medium" selected>Medium</option>
                         <option value="high">High</option>
@@ -113,7 +112,7 @@
                 <div>
                     <span class="close">&times;</span>
                     
-                    <button id="returnToPointCloud" style="display: none;">Return</button>
+                    <button id="returnToPointCloud" style="display: none;" class="return-button-modal">Return</button>
 
                     <h2 id="pointCloudTitle">Point Cloud Generation</h2>
                     <h2 id="meshTitle" style="display: none;">Mesh Generation</h2>
@@ -132,7 +131,7 @@
 
                         <div id="pointCloudAdjust">
                             <label for="outlier">Outlier Removal:</label>
-                            <select id="outlierRemoval">
+                            <select id="outlierRemoval" class="custom-select">
                                 <option value="veryLow">Very Low</option>
                                 <option value="low">Low</option>
                                 <option value="medium" selected>Medium</option>
@@ -143,7 +142,7 @@
 
                         <div id="meshAdjust" style="display: none;">
                             <label for="depthMesh">Mesh Details:</label>
-                            <select id="depthMesh">
+                            <select id="depthMesh" class="custom-select">
                                 <option value="veryLow">Very Low</option>
                                 <option value="low">Low</option>
                                 <option value="medium" selected>Medium</option>

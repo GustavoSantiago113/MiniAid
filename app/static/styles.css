@@ -57,11 +57,10 @@ html{
 
 .navigation-button{
     background-color: var(--buttons-footer);
-    width: 25.278vw;
     transition: all 0.5s;
     cursor: pointer;
     border-radius: 20px;
-    margin-top: 7.422vh;
+    margin-top: 6vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -70,6 +69,7 @@ html{
     height: 8.789vh;
     text-decoration: none;
     color: var(--text-button);
+    padding: 1vw;
     &:hover {
         background-color: var(--button-hover_active-item);
         transform: scale(1.1);
@@ -109,7 +109,7 @@ html{
 
 .return-button{
     background-color: var(--buttons-footer);
-    width: 16.736vw;
+    padding: 1vw;
     transition: all 0.5s;
     cursor: pointer;
     border-radius: 20px;
@@ -165,7 +165,6 @@ html{
 
 .action-button{
     background-color: var(--buttons-footer);
-    transition: all 0.5s;
     cursor: pointer;
     border-radius: 20px;
     display: flex;
@@ -175,11 +174,9 @@ html{
     font-size: 2.344vh;
     text-decoration: none;
     color: var(--text-button);
-    padding: 15px;
+    padding: 1.5vw;
     &:hover {
         background-color: var(--button-hover_active-item);
-        transform: scale(1.1);
-        box-shadow: 0px 10px 10px 0px rgba(41, 115, 115, 70%);
     };
 }
 
@@ -239,7 +236,7 @@ html{
 
 input[type="text"] {
     padding: 8px;
-    border: 2px solid red;
+    border: 2px solid var(--buttons-footer);
     border-radius: 5px;
     width: 23.889vw;
 }
@@ -257,7 +254,7 @@ input[type="color"] {
 }
 
 .add-btn {
-    background-color: red;
+    background-color: var(--buttons-footer);
     color: white;
     border: none;
     width: 40px;
@@ -394,6 +391,11 @@ input[type="color"] {
     align-items: center;
 }
 
+.file-item.upload-item:hover{
+    background-color: var(--button-hover_active-item);
+    color: white;
+}
+
 .file-item.delete-item {
     cursor: pointer;
     display: flex;
@@ -506,6 +508,47 @@ input[type="color"] {
     display: flex;
     justify-content: space-between;
     gap: 15px;
+}
+
+.custom-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    font-size: 18px;
+    padding: 8px 40px 8px 16px;
+    border: 1.5px solid #2c6f72;
+    border-radius: 6px;
+    background-color: white;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%232c6f72' height='10' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 3vh;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.custom-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(44, 111, 114, 0.3);
+}
+
+.return-button-modal{
+    background-color: var(--buttons-footer);
+    padding: 1vw;
+    transition: all 0.5s;
+    cursor: pointer;
+    border-radius: 10px;
+    align-items: center;
+    font-size: 1.953vh;
+    height: 5.566vh;
+    text-decoration: none;
+    color: var(--text-button);
+}
+
+.return-button-modal:hover{
+    background-color: var(--button-hover_active-item);
 }
 
 /* About */
