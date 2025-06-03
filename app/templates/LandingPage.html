@@ -51,4 +51,14 @@
             </a>
         </div>
     </footer>
+    <script>
+        let image = document.getElementById("landingImage");
+        image.style.opacity = 0;
+        
+        // Start the animation after a short delay
+        setTimeout(() => {
+            image.style.animation = "slideFromRight 1.5s ease-out forwards";
+            image.style.opacity = 1;
+        }, 200);
+    </script>
 </html>
