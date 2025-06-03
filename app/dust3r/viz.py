@@ -167,7 +167,7 @@ class SceneViz:
             # new cleaned pointcloud
             pct = trimesh.PointCloud(pct.vertices[valid], color=pct.visual.vertex_colors[valid])
 
-        pct.export("app/static/reconstruction/point_cloud.ply")
+        pct.export("static/reconstruction/point_cloud.ply")
         self.scene.add_geometry(pct)
         return self
 

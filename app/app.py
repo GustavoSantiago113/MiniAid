@@ -13,10 +13,10 @@ import threading
 import open3d as o3d
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'app/static/uploads'
-app.config['UPLOAD_FOLDER_FRAMES'] = 'app/static/uploads/frames'
-app.config['MODELS'] = 'app/static/models'
-app.config['RECONSTRUCTION'] = 'app/static/reconstruction'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['UPLOAD_FOLDER_FRAMES'] = 'static/uploads/frames'
+app.config['MODELS'] = 'static/models'
+app.config['RECONSTRUCTION'] = 'static/reconstruction'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
@@ -212,7 +212,7 @@ def segment_image():
     if file.startswith("http"):
         # Only keep the path after "/static/"
         file = file.split("/static/")[-1]
-        file = os.path.join("app", "static", file)
+        file = os.path.join("static", file)
 
     # Get the image data
     polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, smooth=smooth)
@@ -229,7 +229,7 @@ def download_segmented():
     if image_path.startswith("http"):
         # Only keep the path after "/static/"
         image_path = image_path.split("/static/")[-1]
-        image_path = os.path.join("app", "static", image_path)
+        image_path = os.path.join("static", image_path)
 
     # Use the utility to crop and mask the image
     output_img = utils.crop_image_with_polygon(image_path, polygon)
@@ -281,7 +281,7 @@ def point_cloud():
             if not is_reconstruction_cancelled:
                 set_progress("done", "Reconstruction finished!", 100)
         except Exception as e:
-            cloud_path = "app/static/reconstruction/point_cloud.ply"
+            cloud_path = "static/reconstruction/point_cloud.ply"
             pcd = o3d.io.read_point_cloud(cloud_path)
             o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Reconstructed")
             if not is_reconstruction_cancelled:
@@ -314,10 +314,10 @@ def remove_outliers():
     data = request.json
     params = data.get('parameters')
 
-    cloud_path = "app/static/reconstruction/point_cloud.ply"
+    cloud_path = "static/reconstruction/point_cloud.ply"
     pcd = o3d.io.read_point_cloud(cloud_path)
     pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=params[0], std_ratio=params[1])
-    o3d.io.write_point_cloud("app/static/reconstruction/point_cloud_temp.ply", pcd)
+    o3d.io.write_point_cloud("static/reconstruction/point_cloud_temp.ply", pcd)
     o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Outliers removed")
 
     return jsonify({'success': True})
@@ -328,21 +328,21 @@ def make_mesh():
     data = request.json
     depth = data.get('depth', 10)
 
-    if(os.path.exists("app/static/reconstruction/point_cloud_temp.ply")):
-        cloud_path = "app/static/reconstruction/point_cloud_temp.ply"
+    if(os.path.exists("static/reconstruction/point_cloud_temp.ply")):
+        cloud_path = "static/reconstruction/point_cloud_temp.ply"
     else:
-        cloud_path = "app/static/reconstruction/point_cloud.ply"
-    mesh_path = "app/static/reconstruction/reconstruction.ply"
+        cloud_path = "static/reconstruction/point_cloud.ply"
+    mesh_path = "static/reconstruction/reconstruction.ply"
     utils.poisson_reconstruction_from_point_cloud(cloud_path, mesh_path, depth=depth)
 
     return jsonify({'success': True})
 
 @app.route("/download-point-cloud", methods=["GET"])
 def download_point_cloud():
-    if(os.path.exists("app/static/reconstruction/point_cloud_temp.ply")):
-        cloud_path = "app/static/reconstruction/point_cloud_temp.ply"
+    if(os.path.exists("static/reconstruction/point_cloud_temp.ply")):
+        cloud_path = "static/reconstruction/point_cloud_temp.ply"
     else:
-        cloud_path = "app/static/reconstruction/point_cloud.ply"
+        cloud_path = "static/reconstruction/point_cloud.ply"
     return send_file(cloud_path, as_attachment=True, download_name="point_cloud.ply")
 
 @app.route("/download-mesh", methods=["GET"])
@@ -356,4 +356,4 @@ def about_page():
     return render_template('About.html')
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=5000)
