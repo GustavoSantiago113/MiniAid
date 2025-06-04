@@ -108,7 +108,7 @@ python app.py
 
 ### Post-Painting
 1. Navigate to the Post-Painting page.
-2. Upload multiple images of your miniature model.
+2. Upload multiple images of your miniature model **Pro tip: 3 - 8 images are enough**.
 3. Perform segmentation to isolate specific areas of the images.
 4. Download the segmented image to share in your social media.
 5. Generate a point cloud from the uploaded images.
