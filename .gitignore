@@ -2,3 +2,4 @@ frames/
 app/static/models/
 runs/
 Miniatures/
+skyseg.onnx
