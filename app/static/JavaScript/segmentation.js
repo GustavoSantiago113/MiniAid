@@ -138,6 +138,7 @@ function initializeCanvasDrawing(canvas, ctx) {
     canvas.removeEventListener("mouseup", handleMouseUp);
     canvas.removeEventListener("mouseleave", handleMouseLeave);
     canvas.removeEventListener("wheel", handleWheel);
+    canvas.removeEventListener("dblclick", handleDoubleClick);
 
     // Add event listeners
     canvas.addEventListener("mousedown", handleMouseDown);
@@ -145,6 +146,7 @@ function initializeCanvasDrawing(canvas, ctx) {
     canvas.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("mouseleave", handleMouseLeave);
     canvas.addEventListener("wheel", handleWheel);
+    canvas.addEventListener("dblclick", handleDoubleClick);
 
     function handleMouseDown(e) {
         const rect = canvas.getBoundingClientRect();
@@ -176,6 +178,44 @@ function initializeCanvasDrawing(canvas, ctx) {
             if (draggingPointIndex !== -1) {
                 isDragging = true;
                 canvas.style.cursor = 'move';
+            } else {
+                // Check if clicking on a line to add a point
+                for (let i = 0; i < polygonPoints.length; i++) {
+                    const j = (i + 1) % polygonPoints.length;
+                    const [x1, y1] = polygonPoints[i];
+                    const [x2, y2] = polygonPoints[j];
+                    
+                    // Calculate distance from point to line segment
+                    const A = canvasX - x1;
+                    const B = canvasY - y1;
+                    const C = x2 - x1;
+                    const D = y2 - y1;
+                    
+                    const dot = A * C + B * D;
+                    const lenSq = C * C + D * D;
+                    let param = -1;
+                    if (lenSq !== 0) param = dot / lenSq;
+                    
+                    let xx, yy;
+                    if (param < 0) {
+                        xx = x1;
+                        yy = y1;
+                    } else if (param > 1) {
+                        xx = x2;
+                        yy = y2;
+                    } else {
+                        xx = x1 + param * C;
+                        yy = y1 + param * D;
+                    }
+                    
+                    const distance = Math.hypot(canvasX - xx, canvasY - yy);
+                    if (distance < 5 / zoomLevel) { // 5px tolerance for line clicks
+                        // Add point after the current segment
+                        polygonPoints.splice(j, 0, [canvasX, canvasY]);
+                        redrawCanvas(canvas, ctx);
+                        break;
+                    }
+                }
             }
         }
     }
@@ -230,6 +270,30 @@ function initializeCanvasDrawing(canvas, ctx) {
             canvas.style.cursor = 'default';
         }
         isDrawing = false;
+        draggingPointIndex = -1;
+    }
+
+    function handleDoubleClick(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const canvasX = (x - panOffsetX) / zoomLevel;
+        const canvasY = (y - panOffsetY) / zoomLevel;
+
+        if (interactionMode === "polygon") {
+            // Check if double-clicking on a point
+            polygonPoints.forEach(([px, py], index) => {
+                const distance = Math.hypot(px - canvasX, py - canvasY);
+                if (distance < POINT_RADIUS / zoomLevel) {
+                    // Remove point if polygon has more than 3 points
+                    if (polygonPoints.length > 3) {
+                        polygonPoints.splice(index, 1);
+                        redrawCanvas(canvas, ctx);
+                    }
+                }
+            });
+        }
     }
 
     function handleMouseLeave(e) {
