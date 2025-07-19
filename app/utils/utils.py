@@ -79,62 +79,77 @@ def generate_pdf(image_path, text_color_dict, output):
 
     c.save()
 
-def get_segmentation_polygon(coordinates, model, source, smooth=0.0005):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    with torch.no_grad():
-        results = model(source, device=device, bboxes=coordinates, imgsz=1024, save=False, verbose=False)
-    
-    for result in results:
-        for c in result:
-            # Extract the polygon coordinates
-            polygon = c.masks.xy[0].astype(int).tolist()
-            if not polygon:
-                continue
-            # Convert to numpy array for OpenCV
-            poly_np = np.array(polygon, dtype=np.int32)
-            # Calculate epsilon (the approximation accuracy)
-            epsilon = smooth * cv2.arcLength(poly_np, True)
-            approx = cv2.approxPolyDP(poly_np, epsilon, True)
-            # Convert back to list of [x, y]
-            simplified = approx.reshape(-1, 2).tolist()
-            del results
-            torch.cuda.empty_cache()
-            return simplified
-
-    # If no results, return an empty list
-    del results
-    torch.cuda.empty_cache()
-    return []
-
 def crop_image_with_polygon(image_path, polygon):
-    # Open image with PIL to handle EXIF orientation
-    pil_img = PILImage.open(image_path).convert("RGBA")
-    img = np.array(pil_img)
+    try:
+        # Open image with PIL and convert to RGB (remove alpha if present)
+        pil_img = PILImage.open(image_path)
+        
+        # Handle EXIF orientation properly
+        if hasattr(pil_img, '_getexif') and pil_img._getexif() is not None:
+            exif = pil_img._getexif()
+            orientation = exif.get(0x0112)
+            if orientation == 3:
+                pil_img = pil_img.rotate(180, expand=True)
+            elif orientation == 6:
+                pil_img = pil_img.rotate(270, expand=True)
+            elif orientation == 8:
+                pil_img = pil_img.rotate(90, expand=True)
+        
+        # Convert to RGB if it has transparency
+        if pil_img.mode in ('RGBA', 'LA'):
+            background = PILImage.new('RGB', pil_img.size, (255, 255, 255))
+            if pil_img.mode == 'RGBA':
+                background.paste(pil_img, mask=pil_img.split()[-1])
+            else:
+                background.paste(pil_img, mask=pil_img.split()[-1])
+            pil_img = background
+        elif pil_img.mode != 'RGB':
+            pil_img = pil_img.convert('RGB')
+        
+        # Convert to numpy array for OpenCV processing
+        img = np.array(pil_img)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        
+        # Create mask
+        mask = np.zeros(img.shape[:2], dtype=np.uint8)
+        pts = np.array(polygon, dtype=np.int32)
+        
+        # Ensure polygon coordinates are within image bounds
+        pts[:, 0] = np.clip(pts[:, 0], 0, img.shape[1] - 1)
+        pts[:, 1] = np.clip(pts[:, 1], 0, img.shape[0] - 1)
+        
+        cv2.fillPoly(mask, [pts], 255)
+        
+        # Create output image with transparent background
+        height, width = img.shape[:2]
+        result = np.zeros((height, width, 4), dtype=np.uint8)
+        
+        # Copy RGB channels where mask is white
+        result[:, :, :3] = img
+        result[:, :, 3] = mask  # Alpha channel
+        
+        # Get bounding rectangle of the polygon
+        x, y, w, h = cv2.boundingRect(pts)
+        
+        # Add some padding if desired (optional)
+        padding = 5
+        x = max(0, x - padding)
+        y = max(0, y - padding)
+        w = min(width - x, w + 2 * padding)
+        h = min(height - y, h + 2 * padding)
+        
+        # Crop to bounding rectangle
+        cropped = result[y:y+h, x:x+w]
+        
+        # Convert back to PIL Image
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_BGRA2RGBA)
+        return PILImage.fromarray(cropped_rgb)
+        
+    except Exception as e:
+        print(f"Error in crop_image_with_polygon: {e}")
+        raise e
 
-    # Convert RGBA to BGRA for OpenCV
-    img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)
-    img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-
-    # Create mask
-    mask = np.zeros(img.shape[:2], dtype=np.uint8)
-    pts = np.array(polygon, dtype=np.int32)
-    cv2.fillPoly(mask, [pts], 255)
-
-    # Apply mask to alpha channel
-    img[:, :, 3] = mask
-
-    # Crop to bounding rect of polygon
-    x, y, w, h = cv2.boundingRect(pts)
-    cropped = img[y:y+h, x:x+w]
-
-    # Convert BGRA back to RGBA for PIL
-    cropped = cv2.cvtColor(cropped, cv2.COLOR_BGRA2RGBA)
-
-    # Convert to PIL Image for Flask send_file
-    return PILImage.fromarray(cropped)
-
-def reconstruct_cloud_point(folder_path, progress_callback=None, check_cancelled=None):
+""" def reconstruct_cloud_point(folder_path, progress_callback=None, check_cancelled=None):
     if check_cancelled and check_cancelled():
         return None
         
@@ -220,7 +235,7 @@ def poisson_reconstruction_from_point_cloud(
 
     o3d.io.write_triangle_mesh(output_mesh_file, mesh)
 
-    return mesh
+    return mesh """
 
 def adjust_black_point(img, black_point=20):
     """

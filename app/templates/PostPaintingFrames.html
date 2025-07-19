@@ -53,7 +53,7 @@
                 </div>
                 
                 <div class="action-buttons">
-                    <button class="action-button" onclick="openSegmentationModal(previewImage.src, canvas)">
+                    <button class="action-button" onclick="openSegmentationModal()">
                         <img src="../static/icons/segmentation.png" class="button-icon">
                         Segment Image
                     </button>
@@ -76,40 +76,40 @@
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
-                    <div id="pre-segment-text">
-                        <span>Draw a rectangle around the area to be segmented</span>
-                        <br>
-                        <span>If the image does not come as expected, try drawing a broader rectangle</span>
-                    </div>
-                    <div id="post-segment-text" style="display: none;">
+
+                    <div id="post-segment-text" style="text-align: center; margin-bottom: 25px;">
                         <span>Re-arrange the points to improve the segmentation</span>
                         <br>
                         <span>Use mouse wheel to zoom and SHIFT+mouse to move</span>
                     </div>
-                </div>
-                <div id="imageContainer">
-                    <canvas id="imageCanvas"></canvas>
-                </div>
-                <div class = "action-button" id="sendToSegment" style="text-align: center;">
-                    Segment
-                </div>
-                <div class = "post-process-controls" id="postSegmentationControls" style="display: none;">
 
-                    <label for="smooth">Counter smoothness:</label>
-                    <select id="segSmooth" class="custom-select">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                    </select>
+                </div>
 
-                    <div class = "adjustment-buttons" id="adjustSegmentation">
-                        <div class = "action-button" id="reRunSegmentation">
-                            <img src="../static/icons/reRun.png" class="button-icon">
-                            Re-run segmentation
+                <div class = "post-process-controls" id="postSegmentationControls" style="gap: 15px;">
+                    
+                    <div id="imageContainer">
+
+                    </div>
+                    
+                    <div class = "controls-buttons">
+                        <div class="slider-container">
+                            <label for="smooth">Counter smoothness:</label>
+                            <select id="segSmooth" class="custom-select">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>  
                         </div>
-                        <div class = "action-button" id="downloadSegmented">
-                            <img src="../static/icons/download.png" class="button-icon">
-                            Download
+
+                        <div class = "adjustment-buttons" id="adjustSegmentation">
+                            <div class = "action-button" id="reRunSegmentation">
+                                <img src="../static/icons/reRun.png" class="button-icon">
+                                Re-run segmentation
+                            </div>
+                            <div class = "action-button" id="downloadSegmented">
+                                <img src="../static/icons/download.png" class="button-icon">
+                                Download
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -253,10 +253,6 @@
 
         slider.addEventListener('input', updateSlider);
         updateSlider();
-        
-        document.getElementById("sendToSegment").addEventListener("click", function() {
-            sendImageToSegment(canvas);
-        });
 
         document.getElementById("downloadSegmented").addEventListener("click", function() {
             segmentImage();

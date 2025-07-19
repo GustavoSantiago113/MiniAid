@@ -2,7 +2,7 @@ let loadedModalImage = null;
 let originalWidthImg = 0;
 let originalHeightImg = 0;
 let startX, startY, endX, endY;
-let interactionMode = "rectangle";
+let interactionMode = "polygon"; // Default to polygon mode now
 let lastRectangleCoords = null;
 let isDrawing = false;
 let isDragging = false;
@@ -19,83 +19,128 @@ let lastPanY = 0;
 const MAX_ZOOM = 10;
 const MIN_ZOOM = 0.5;
 
-async function openSegmentationModal(imageSrc, canvas) {
-    
+async function openSegmentationModal() {
     const modal = document.getElementById("segmentationModal");
     const imageContainer = document.getElementById("imageContainer");
-    const ctx = canvas.getContext("2d");
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    imageContainer.innerHTML = "";
-    imageContainer.appendChild(canvas);
-
-    startX = startY = endX = endY = undefined;
+    // Reset state
     polygonPoints = [];
-    interactionMode = "rectangle";
-
+    interactionMode = "polygon";
     zoomLevel = 1;
     panOffsetX = 0;
     panOffsetY = 0;
     isPanning = false;
 
-    // Load the image into the modal
-    loadedModalImage = new window.Image();
+    // 1. Show modal and loader
+    modal.style.display = "flex";
+    imageContainer.innerHTML = '<div class="loader" id="segmentationLoader"></div>';
 
-    // Wait for the image to load
-    loadedModalImage.onload = () => {
-        setTimeout(() => {
-            originalWidthImg = loadedModalImage.naturalWidth;
-            originalHeightImg = loadedModalImage.naturalHeight;
-            
-            // Calculate appropriate canvas size based on the container
-            const containerWidth = imageContainer.clientWidth;
-            const containerHeight = Math.min(window.innerHeight * 0.7, 600); // Limit height
-            
-            // Calculate scaling to fit in container while maintaining aspect ratio
-            const scaleWidth = containerWidth / originalWidthImg;
-            const scaleHeight = containerHeight / originalHeightImg;
-            const scale = Math.min(scaleWidth, scaleHeight);
-            
-            // Set canvas dimensions
-            const canvasWidth = originalWidthImg * scale;
-            const canvasHeight = originalHeightImg * scale;
-            
-            // Set canvas size
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            canvas.style.width = `${canvasWidth}px`;
-            canvas.style.height = `${canvasHeight}px`;
-            
-            // Draw the image on the canvas
-            ctx.drawImage(loadedModalImage, 0, 0, canvasWidth, canvasHeight);
-            
-            initializeCanvasDrawing(canvas, ctx);
-        }, 50);
+    // 2. Send image for segmentation
+    const imagePath = previewImage.src;
+    let img = new window.Image();
+
+    let polygons = [];
+    try {
+        const response = await fetch('/segment-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_path: imagePath }),
+        });
+        const data = await response.json();
+        if (data.success && data.polygons && data.polygons.length > 0) {
+            polygons = data.polygons;
+        } else if (data.success && (!data.polygons || data.polygons.length === 0)){
+            imageContainer.innerHTML = '<p style="text-align: center; color: red;">No Miniatures detected, please reduce the confidence</p>';
+            return;
+        } else {
+            throw new Error(data.message || "Segmentation failed.");
+        }
+    } catch (e) {
+        // Replace spinner with error message
+        imageContainer.innerHTML = `<p style="text-align: center; color: red;">Error: ${e.message}</p>`;
+        return;
+    }
+
+    // 3. When image loads, replace loader with canvas and draw polygon
+    img.onload = function() {
+        imageContainer.innerHTML = '';
+
+        // Create a new canvas if not present
+        let canvas = document.getElementById("imageCanvas");
+        if (!canvas) {
+            canvas = document.createElement("canvas");
+            canvas.id = "imageCanvas";
+        }
+        imageContainer.appendChild(canvas);
+
+        // Calculate appropriate canvas size based on the container
+        const containerWidth = imageContainer.clientWidth;
+        const containerHeight = Math.min(window.innerHeight * 0.7, 600); // Limit height
+        
+        // Calculate scaling to fit in container while maintaining aspect ratio
+        const scaleWidth = containerWidth / img.naturalWidth;
+        const scaleHeight = containerHeight / img.naturalHeight;
+        const scale = Math.min(scaleWidth, scaleHeight);
+        
+        // Set canvas dimensions
+        const canvasWidth = img.naturalWidth * scale;
+        const canvasHeight = img.naturalHeight * scale;
+        
+        // Set canvas size
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        canvas.style.width = `${canvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+        canvas.style.display = "block";
+
+        // Save global variables
+        loadedModalImage = img;
+        originalWidthImg = img.naturalWidth;
+        originalHeightImg = img.naturalHeight;
+        interactionMode = "polygon";
+
+        // Convert polygon points from original image coordinates to canvas coordinates
+        polygonPoints = polygons.map(point => {
+            const [origX, origY] = point;
+            const canvasX = (origX / originalWidthImg) * canvasWidth;
+            const canvasY = (origY / originalHeightImg) * canvasHeight;
+            return [canvasX, canvasY];
+        });
+
+        // Draw image and polygon
+        const ctx = canvas.getContext("2d");
+        redrawCanvas(canvas, ctx);
+
+        // Enable polygon editing
+        initializeCanvasDrawing(canvas, ctx);
     };
 
-    loadedModalImage.src = imageSrc;
-    
-    // Display the modal
-    modal.style.display = "flex";
+    img.src = imagePath;
 
-    // Close Modal
+    // Close modal handler
     document.querySelector(".close").addEventListener("click", function() {
         document.getElementById("segmentationModal").style.display = "none";
-        document.getElementById("sendToSegment").style.display = "block";
-        document.getElementById("pre-segment-text").style.display = "block";
-        document.getElementById("post-segment-text").style.display = "none";
-        document.getElementById("postSegmentationControls").style.display = "none";
-        interactionMode = "rectangle";
         loadedModalImage = null;
+        polygonPoints = [];
     });
-
 }
 
 function initializeCanvasDrawing(canvas, ctx) {
+    // Remove existing event listeners to prevent duplicates
+    canvas.removeEventListener("mousedown", handleMouseDown);
+    canvas.removeEventListener("mousemove", handleMouseMove);
+    canvas.removeEventListener("mouseup", handleMouseUp);
+    canvas.removeEventListener("mouseleave", handleMouseLeave);
+    canvas.removeEventListener("wheel", handleWheel);
 
-    // Start drawing
-    canvas.addEventListener("mousedown", (e) => {
+    // Add event listeners
+    canvas.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("mouseup", handleMouseUp);
+    canvas.addEventListener("mouseleave", handleMouseLeave);
+    canvas.addEventListener("wheel", handleWheel);
+
+    function handleMouseDown(e) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -113,28 +158,23 @@ function initializeCanvasDrawing(canvas, ctx) {
 
         if (interactionMode === "polygon") {
             draggingPointIndex = -1;
-    
+
+            // Check if clicking on a point
             polygonPoints.forEach(([px, py], index) => {
-                if (Math.hypot(px - canvasX, py - canvasY) < POINT_RADIUS / zoomLevel) {
+                const distance = Math.hypot(px - canvasX, py - canvasY);
+                if (distance < POINT_RADIUS / zoomLevel) {
                     draggingPointIndex = index;
                 }
             });
 
             if (draggingPointIndex !== -1) {
                 isDragging = true;
+                canvas.style.cursor = 'move';
             }
-
-        } else if (interactionMode === "rectangle") {
-            isDrawing = true;
-            startX = canvasX;
-            startY = canvasY;
-            endX = canvasX;
-            endY = canvasY;
         }
+    }
 
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
+    function handleMouseMove(e) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -145,13 +185,13 @@ function initializeCanvasDrawing(canvas, ctx) {
         if (isPanning) {
             const deltaX = e.clientX - lastPanX;
             const deltaY = e.clientY - lastPanY;
-            
+
             panOffsetX += deltaX;
             panOffsetY += deltaY;
-            
+
             lastPanX = e.clientX;
             lastPanY = e.clientY;
-            
+
             redrawCanvas(canvas, ctx);
             return;
         }
@@ -159,58 +199,62 @@ function initializeCanvasDrawing(canvas, ctx) {
         if (interactionMode === "polygon" && isDragging && draggingPointIndex !== -1) {
             polygonPoints[draggingPointIndex] = [canvasX, canvasY];
             redrawCanvas(canvas, ctx);
-        } else if (interactionMode === "rectangle" && isDrawing) {
-            endX = canvasX;
-            endY = canvasY;
-            redrawCanvas(canvas, ctx);
         }
-    });
 
-    canvas.addEventListener("mouseup", () => {
+        // Update cursor based on what's under mouse
+        if (interactionMode === "polygon" && !isDragging) {
+            let overPoint = false;
+            polygonPoints.forEach(([px, py]) => {
+                const distance = Math.hypot(px - canvasX, py - canvasY);
+                if (distance < POINT_RADIUS / zoomLevel) {
+                    overPoint = true;
+                }
+            });
+            canvas.style.cursor = overPoint ? 'pointer' : 'default';
+        }
+    }
+
+    function handleMouseUp(e) {
         if (isPanning) {
             isPanning = false;
             canvas.style.cursor = 'default';
         }
+        if (isDragging) {
+            isDragging = false;
+            canvas.style.cursor = 'default';
+        }
         isDrawing = false;
-        isDragging = false;
-    });
+    }
 
-    canvas.addEventListener("mouseleave", () => {
+    function handleMouseLeave(e) {
         isPanning = false;
         isDrawing = false;
         isDragging = false;
         canvas.style.cursor = 'default';
-    });
+    }
 
-    canvas.addEventListener("wheel", (e) => {
+    function handleWheel(e) {
         e.preventDefault(); // Prevent page scrolling
-        
-        // Get mouse position relative to canvas
+
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        
-        // Calculate zoom change based on wheel delta
+
         const zoomChange = e.deltaY > 0 ? 0.9 : 1.1; // Zoom out or in
         const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomLevel * zoomChange));
-        
-        // Only proceed if zoom actually changes
+
         if (newZoom !== zoomLevel) {
-            // Calculate mouse position in canvas space before zoom
             const canvasXBefore = (mouseX - panOffsetX) / zoomLevel;
             const canvasYBefore = (mouseY - panOffsetY) / zoomLevel;
-            
-            // Apply new zoom level
+
             zoomLevel = newZoom;
-            
-            // Calculate new offset to keep the point under mouse in the same position
+
             panOffsetX = mouseX - canvasXBefore * zoomLevel;
             panOffsetY = mouseY - canvasYBefore * zoomLevel;
-            
-            // Redraw canvas with new zoom/pan
+
             redrawCanvas(canvas, ctx);
         }
-    });
+    }
 }
 
 function redrawCanvas(canvas, ctx) {
@@ -224,96 +268,41 @@ function redrawCanvas(canvas, ctx) {
         ctx.drawImage(loadedModalImage, 0, 0, canvas.width, canvas.height);
     }
     
-    if (interactionMode === "rectangle" && startX !== undefined && endX !== undefined) {
-        // Draw rectangle
-        ctx.strokeStyle = "green";
-        ctx.lineWidth = 2 / zoomLevel;
-        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-    } else if (interactionMode === "polygon" && polygonPoints.length > 0) {
-        // Draw polygon
+    if (interactionMode === "polygon" && polygonPoints.length > 0) {
         drawPolygonAndPoints(ctx);
     }
 
     ctx.restore();
 }
 
-function getRectangleCoordinates() {
+function drawPolygonAndPoints(ctx) {
+    if (!polygonPoints || polygonPoints.length === 0) return;
 
-    if (startX === undefined || startY === undefined || 
-        endX === undefined || endY === undefined) {
-        return null; // No rectangle drawn
+    // Draw polygon lines
+    ctx.beginPath();
+    ctx.moveTo(polygonPoints[0][0], polygonPoints[0][1]);
+    for (let i = 1; i < polygonPoints.length; i++) {
+        ctx.lineTo(polygonPoints[i][0], polygonPoints[i][1]);
     }
+    ctx.closePath();
+    ctx.strokeStyle = "blue";
+    ctx.lineWidth = Math.max(2 / zoomLevel, 1); // Ensure minimum line width
+    ctx.stroke();
 
-    // Calculate scaling factors from canvas to original image
-    const scaleX = originalWidthImg / canvas.width;
-    const scaleY = originalHeightImg / canvas.height;
-
-    // Scale the coordinates to the original image size
-    const scaledStartX = startX * scaleX;
-    const scaledStartY = startY * scaleY;
-    const scaledEndX = endX * scaleX;
-    const scaledEndY = endY * scaleY;
-
-    return {
-        x_min: Math.min(scaledStartX, scaledEndX),
-        y_min: Math.min(scaledStartY, scaledEndY),
-        x_max: Math.max(scaledStartX, scaledEndX),
-        y_max: Math.max(scaledStartY, scaledEndY),
-    };
+    // Draw control points
+    const pointRadius = Math.max(POINT_RADIUS / zoomLevel, 3); // Ensure minimum point size
+    polygonPoints.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, pointRadius, 0, Math.PI * 2);
+        ctx.fillStyle = "red";
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = Math.max(1 / zoomLevel, 0.5); // Ensure minimum border width
+        ctx.stroke();
+    });
 }
 
-async function sendImageToSegment(canvas){
-    
-    const coordinates = getRectangleCoordinates(canvas);
-
-    if (coordinates) {
-        const button = document.getElementById("sendToSegment");
-        lastRectangleCoords = coordinates;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<span class="loader"></span>';
-        button.disabled = true;
-
-        try{
-
-            const imagePath = loadedModalImage.src;
-
-            // Send the file to the server
-           const response = await fetch('/segment-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ image_path: imagePath, coordinates: coordinates }),
-            });
-            
-            const data = await response.json();
-
-            if (data.success) {
-
-                document.getElementById("sendToSegment").style.display = "none";
-                document.getElementById("pre-segment-text").style.display = "none";
-                document.getElementById("post-segment-text").style.display = "block";
-                document.getElementById("postSegmentationControls").style.display = "block";
-
-                interactionMode = "polygon";
-                renderPolygonOnCanvas(canvas, data.polygon);
-
-            } else {
-                alert("Failed to segment the image.");
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("An error occurred while segmenting the image.");
-        } finally {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    } else {
-        alert("Please draw a rectangle first.");
-    }
-
-}
-
+// Keep this function for backward compatibility if needed
 function renderPolygonOnCanvas(canvas, polygon) {
     if (!polygon || !Array.isArray(polygon) || polygon.length === 0) {
         console.error("Invalid polygon data received");
@@ -325,8 +314,8 @@ function renderPolygonOnCanvas(canvas, polygon) {
     // Convert polygon points from original image coordinates to canvas coordinates
     polygonPoints = polygon.map(point => {
         const [origX, origY] = point;
-        const canvasX = (origX / originalWidthImg) * (canvas.width / zoomLevel);
-        const canvasY = (origY / originalHeightImg) * (canvas.height / zoomLevel);
+        const canvasX = (origX / originalWidthImg) * canvas.width;
+        const canvasY = (origY / originalHeightImg) * canvas.height;
         return [canvasX, canvasY];
     });
     
@@ -337,31 +326,6 @@ function renderPolygonOnCanvas(canvas, polygon) {
     
     // Draw the polygon
     redrawCanvas(canvas, ctx);
-}
-
-function drawPolygonAndPoints(ctx) {
-    
-    ctx.beginPath();
-    ctx.moveTo(polygonPoints[0][0], polygonPoints[0][1]);
-    for (let i = 1; i < polygonPoints.length; i++) {
-        ctx.lineTo(polygonPoints[i][0], polygonPoints[i][1]);
-    }
-    ctx.closePath();
-    ctx.strokeStyle = "blue";
-    ctx.lineWidth = 2 / zoomLevel; // Scale line width with zoom
-    ctx.stroke();
-    
-    // Draw the control points
-    const pointRadius = POINT_RADIUS / zoomLevel; // Scale point size with zoom
-    polygonPoints.forEach(([x, y]) => {
-        ctx.beginPath();
-        ctx.arc(x, y, pointRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "red";
-        ctx.fill();
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 1 / zoomLevel;
-        ctx.stroke();
-    });
 }
 
 async function reSegment() {
@@ -418,19 +382,30 @@ async function reSegment() {
 }
 
 function getUpdatedPolygonOriginalScale() {
+    // Get the canvas element
+    const canvas = document.getElementById("imageCanvas");
+
+    // Check if the canvas exists
+    if (!canvas) {
+        console.error("Canvas element not found.");
+        return [];
+    }
+
+    // Calculate scale factors from canvas coordinates back to original image coordinates
     const scaleX = originalWidthImg / canvas.width;
     const scaleY = originalHeightImg / canvas.height;
 
+    // Convert polygon points back to original image coordinates
     return polygonPoints.map(([x, y]) => [
-        x * scaleX,
-        y * scaleY
+        Math.round(x * scaleX),
+        Math.round(y * scaleY)
     ]);
 }
 
 async function segmentImage(){
     const coordinates = getUpdatedPolygonOriginalScale();
 
-    if (coordinates) {
+    if (coordinates && coordinates.length > 0) {
         const button = document.getElementById("downloadSegmented");
 
         const originalText = button.innerHTML;
@@ -440,12 +415,15 @@ async function segmentImage(){
         try{
             // Send the file to the server
             const response = await fetch('/download-segmented', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image_path: loadedModalImage.src, polygon: coordinates }),
-                });
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    image_path: loadedModalImage.src, 
+                    polygon: coordinates 
+                }),
+            });
                 
             if (response.ok) {
                 const blob = await response.blob();
@@ -457,16 +435,19 @@ async function segmentImage(){
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-
-                button.disabled = false;
-                button.innerHTML = originalText;
                 
             } else {
-                alert("Failed to download segmented image.");
+                const errorData = await response.json();
+                alert(`Failed to download segmented image: ${errorData.error || 'Unknown error'}`);
             }
         } catch (error) {
+            console.error("Error:", error);
             alert("An error occurred while downloading the image.");
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
-
+    } else {
+        alert("No polygon coordinates available for cropping.");
     }
 }

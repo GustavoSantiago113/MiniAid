@@ -8,21 +8,23 @@ from utils import utils
 import cv2
 import io
 import atexit
-from ultralytics import SAM
+from ultralytics import YOLO
 import threading
+import torch
 import open3d as o3d
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['UPLOAD_FOLDER_FRAMES'] = 'static/uploads/frames'
 app.config['MODELS'] = 'static/models'
-app.config['RECONSTRUCTION'] = 'static/reconstruction'
+#app.config['RECONSTRUCTION'] = 'static/reconstruction'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
 os.makedirs(app.config['MODELS'], exist_ok=True)
 
-model = SAM(os.path.join(app.config['MODELS'], "sam2_l.pt"))
+model = YOLO(os.path.join(app.config['MODELS'], "segmentation_model.pt"))
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def cleanup_upload_folder():
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -35,7 +37,7 @@ def cleanup_upload_folder():
         except Exception as e:
             print(f'Failed to delete {file_path}. Reason: {e}')
     
-    for filename in os.listdir(app.config['RECONSTRUCTION']):
+    """ for filename in os.listdir(app.config['RECONSTRUCTION']):
         file_path = os.path.join(app.config['RECONSTRUCTION'], filename)
         try:
             if os.path.isfile(file_path) or os.path.islink(file_path):
@@ -43,7 +45,7 @@ def cleanup_upload_folder():
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)
         except Exception as e:
-            print(f'Failed to delete {file_path}. Reason: {e}')
+            print(f'Failed to delete {file_path}. Reason: {e}') """
 
 atexit.register(cleanup_upload_folder)
 
@@ -196,53 +198,108 @@ def delete_all_images():
 
 @app.route("/segment-image", methods=['POST'])
 def segment_image():
-
-    data = request.json
-    file = data['image_path']
-    coords_dict = data['coordinates']
-    coords_list = [
-        int(round(coords_dict['x_min'])),  # x_min
-        int(round(coords_dict['y_min'])),  # y_min
-        int(round(coords_dict['x_max'])),  # x_max
-        int(round(coords_dict['y_max']))   # y_max
-    ]
-
-    smooth = data.get('smooth', 0.0005)
     
-    if file.startswith("http"):
-        # Only keep the path after "/static/"
-        file = file.split("/static/")[-1]
-        file = os.path.join("static", file)
+    try:
+        data = request.json
+        image_path = data['image_path']
 
-    # Get the image data
-    polygon_coords = utils.get_segmentation_polygon(coords_list, model, file, smooth=smooth)
+        # Load the image
+        if image_path.startswith("http"):
+            image_path = image_path.split("/static/")[-1]
+            image_path = os.path.join("static", image_path)
 
-    # Return the image as a downloadable file
-    return jsonify({'success': True, 'polygon': polygon_coords})
+        #confidence = data.get('confidence', 0.75)
+        #smooth = data.get('smooth', 0.0005)
+
+        # Perform inference
+        results = model.predict(image_path, device=device, max_det=1, conf=0.75, save = False, verbose=False)
+
+        polygons = []
+        # Extract segmentation coordinates
+        for result in results:
+            for c in result:
+                # Extract the polygon coordinates
+                polygons = c.masks.xy[0].astype(int).tolist()
+                
+                # Convert to numpy array for OpenCV
+                #poly_np = np.array(polygons, dtype=np.int32)
+                # Calculate epsilon (the approximation accuracy)
+                #epsilon = smooth * cv2.arcLength(poly_np, True)
+                #approx = cv2.approxPolyDP(poly_np, epsilon, True)
+                # Convert back to list of [x, y]
+                #simplified = approx.reshape(-1, 2).tolist()
+                torch.cuda.empty_cache()
+        
+        if not polygons:
+                    return jsonify({'success': True, 'polygons': []})
+        
+        return jsonify({'success': True, 'polygons': polygons})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route("/download-segmented", methods=['POST'])
 def download_segmented():
-    data = request.get_json()
-    image_path = data['image_path']
-    polygon = data['polygon']
+    try:
+        data = request.get_json()
+        image_path = data.get('image_path')
+        polygon = data.get('polygon')
+        
+        if not image_path or not polygon:
+            return jsonify({"error": "Missing image_path or polygon"}), 400
+        
+        if len(polygon) < 3:
+            return jsonify({"error": "Polygon must have at least 3 points"}), 400
 
-    if image_path.startswith("http"):
-        # Only keep the path after "/static/"
-        image_path = image_path.split("/static/")[-1]
-        image_path = os.path.join("static", image_path)
+        # Handle URL paths
+        if image_path.startswith("http"):
+            # Only keep the path after "/static/"
+            image_path = image_path.split("/static/")[-1]
+            image_path = os.path.join("static", image_path)
+        
+        # Check if file exists
+        if not os.path.exists(image_path):
+            return jsonify({"error": f"Image file not found: {image_path}"}), 404
 
-    # Use the utility to crop and mask the image
-    output_img = utils.crop_image_with_polygon(image_path, polygon)
+        # Use the utility to crop and mask the image
+        output_img = utils.crop_image_with_polygon(image_path, polygon)
 
-    # Save to a BytesIO buffer
-    img_io = BytesIO()
-    output_img.save(img_io, "PNG")
-    img_io.seek(0)
+        # Save to a BytesIO buffer
+        img_io = BytesIO()
+        output_img.save(img_io, "PNG")
+        img_io.seek(0)
 
-    return send_file(img_io, mimetype="image/png", as_attachment=True, download_name="segmented.png")
+        return send_file(
+            img_io, 
+            mimetype="image/png", 
+            as_attachment=True, 
+            download_name="segmented.png"
+        )
+        
+    except Exception as e:
+        print(f"Error in download_segmented: {e}")
+        return jsonify({"error": str(e)}), 500
 
 reconstruction_thread = None
 is_reconstruction_cancelled = False
+
+@app.route("/adjust-black-point", methods=["POST"])
+def adjust_black_point():
+    data = request.json
+    image_src = data["imageSrc"]
+    black_point = int(data["blackPoint"])
+
+    # Load the image
+    image_path = image_src.split("/static/")[-1]
+    image_path = os.path.join("static", image_path)
+    img = cv2.imread(image_path)
+
+    # Adjust black point
+    adjusted_img = utils.adjust_black_point(img, black_point)
+
+    # Convert to base64 for frontend display
+    _, buffer = cv2.imencode(".png", adjusted_img)
+    base64_image = base64.b64encode(buffer).decode("utf-8")
+    return jsonify({"adjustedImage": f"data:image/png;base64,{base64_image}"})
 
 @app.route("/make-point-cloud", methods=['POST'])
 def point_cloud():
@@ -350,25 +407,6 @@ def download_mesh():
     
     file_path = "static/reconstruction/reconstruction.ply"
     return send_file(file_path, as_attachment=True, download_name="reconstruction.ply")
-
-@app.route("/adjust-black-point", methods=["POST"])
-def adjust_black_point():
-    data = request.json
-    image_src = data["imageSrc"]
-    black_point = int(data["blackPoint"])
-
-    # Load the image
-    image_path = image_src.split("/static/")[-1]
-    image_path = os.path.join("static", image_path)
-    img = cv2.imread(image_path)
-
-    # Adjust black point
-    adjusted_img = utils.adjust_black_point(img, black_point)
-
-    # Convert to base64 for frontend display
-    _, buffer = cv2.imencode(".png", adjusted_img)
-    base64_image = base64.b64encode(buffer).decode("utf-8")
-    return jsonify({"adjustedImage": f"data:image/png;base64,{base64_image}"})
 
 @app.route("/about")
 def about_page():
