@@ -437,7 +437,7 @@ input[type="color"] {
 .action-buttons {
     display: flex;
     flex-direction: column;
-    gap: 7.422vh;
+    gap: 10px;
     align-items: center;
 }
 
@@ -475,6 +475,64 @@ input[type="color"] {
     font-size: 30px;
     color: black;
     cursor: pointer;
+}
+
+.post-process-controls{
+    display: flex;
+}
+
+.image-container{
+    max-height: 50vh;
+    max-width: 50vw;
+}
+
+.controls-buttons{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.slider-container {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+}
+
+.slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, 
+        var(--buttons-footer) 0%, 
+        var(--buttons-footer) var(--slider-percent, 25%), 
+        #e0e0e0 var(--slider-percent, 25%), 
+        #e0e0e0 100%);
+    outline: none;
+    cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--buttons-footer);
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--buttons-footer);
+    cursor: pointer;
+    border: none;
 }
 
 #imageContainer {

@@ -351,6 +351,25 @@ def download_mesh():
     file_path = "static/reconstruction/reconstruction.ply"
     return send_file(file_path, as_attachment=True, download_name="reconstruction.ply")
 
+@app.route("/adjust-black-point", methods=["POST"])
+def adjust_black_point():
+    data = request.json
+    image_src = data["imageSrc"]
+    black_point = int(data["blackPoint"])
+
+    # Load the image
+    image_path = image_src.split("/static/")[-1]
+    image_path = os.path.join("static", image_path)
+    img = cv2.imread(image_path)
+
+    # Adjust black point
+    adjusted_img = utils.adjust_black_point(img, black_point)
+
+    # Convert to base64 for frontend display
+    _, buffer = cv2.imencode(".png", adjusted_img)
+    base64_image = base64.b64encode(buffer).decode("utf-8")
+    return jsonify({"adjustedImage": f"data:image/png;base64,{base64_image}"})
+
 @app.route("/about")
 def about_page():
     return render_template('About.html')

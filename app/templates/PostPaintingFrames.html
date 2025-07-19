@@ -7,6 +7,7 @@
         <script src="../static/JavaScript/imagesManagement.js"></script>
         <script src="../static/JavaScript/segmentation.js"></script>
         <script src="../static/JavaScript/reconstruction.js"></script>
+        <script src="../static/JavaScript/blackPoint.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     </head>
     <body>
@@ -56,6 +57,11 @@
                         <img src="../static/icons/segmentation.png" class="button-icon">
                         Segment Image
                     </button>
+
+                    <button class="action-button" onclick="openBlackPointModal(previewImage.src)">
+                        <img src="../static/icons/black_point.png" class="button-icon">
+                        Modify Black Point
+                    </button>
                     
                     <button class="action-button" onclick="openReconstructionModal(frames)">
                         <img src="../static/icons/sculpture.png" class="button-icon" >
@@ -65,6 +71,7 @@
             </div>
             
         </div>
+
         <div id="segmentationModal" class="modal">
             <div class="modal-content">
                 <div>
@@ -105,6 +112,40 @@
                             Download
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="blackPointModal" class="modal">
+            <div class="modal-content">
+                <div>
+                    <span class="close">&times;</span>
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <span>Increase the black point to improve image darkness</span>
+                    </div>
+                </div>
+
+                <div class = "post-process-controls" id="blackPointControls">
+
+                    <div class="image-container">
+                        <img id="blackPointImage" src="" alt="Selected image" style="object-fit: contain; height: 100%; width: 100%;">
+                    </div>
+                    
+                    <div class = "controls-buttons">
+                        <div class="slider-container">
+                            <label for="blackPointSlider">Black Point:</label>
+                            <input type="range" id="blackPointSlider" min="0" max="100" value="20" step="1" class="slider">
+                            <span id="blackPointValue">20%</span>
+                        </div>
+
+                        <div class = "adjustment-buttons" id="adjustBlackPoint">
+                            <div class = "action-button" id="downloadBlackPoint">
+                                <img src="../static/icons/download.png" class="button-icon">
+                                Download
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -201,6 +242,17 @@
         document.getElementById("frameUploadInput").addEventListener("change", function () {
             sendMoreImageToFrames();
         });
+
+        const slider = document.getElementById('blackPointSlider');
+
+        function updateSlider() {
+            const value = slider.value;
+            const percent = (value / slider.max) * 100;
+            slider.style.setProperty('--slider-percent', percent + '%');
+        }
+
+        slider.addEventListener('input', updateSlider);
+        updateSlider();
         
         document.getElementById("sendToSegment").addEventListener("click", function() {
             sendImageToSegment(canvas);

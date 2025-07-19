@@ -8,11 +8,11 @@ from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
 import cv2
 import torch
-from dust3r.cloud_opt import GlobalAlignerMode, global_aligner
+""" from dust3r.cloud_opt import GlobalAlignerMode, global_aligner
 from dust3r.image_pairs import make_pairs
 from dust3r.inference import inference
 from dust3r.model import AsymmetricCroCo3DStereo
-from dust3r.utils.image import load_images
+from dust3r.utils.image import load_images """
 import open3d as o3d
 
 def rgb2gray(rgb):
@@ -221,3 +221,18 @@ def poisson_reconstruction_from_point_cloud(
     o3d.io.write_triangle_mesh(output_mesh_file, mesh)
 
     return mesh
+
+def adjust_black_point(img, black_point=20):
+    """
+    Adjust the black point of the image.
+    """
+    img = img.astype(np.float32)
+
+    # Subtract black point
+    img = np.clip(img - black_point, 0, 255 - black_point)
+
+    # Rescale to full 0-255 range
+    img = (img / (255 - black_point)) * 255
+    img = np.clip(img, 0, 255).astype(np.uint8)
+
+    return img
