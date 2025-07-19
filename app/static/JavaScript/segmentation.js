@@ -290,14 +290,14 @@ function drawPolygonAndPoints(ctx) {
     ctx.stroke();
 
     // Draw control points
-    const pointRadius = Math.max(POINT_RADIUS / zoomLevel, 3); // Ensure minimum point size
+    const pointRadius = POINT_RADIUS / zoomLevel; // Ensure minimum point size
     polygonPoints.forEach(([x, y]) => {
         ctx.beginPath();
         ctx.arc(x, y, pointRadius, 0, Math.PI * 2);
         ctx.fillStyle = "red";
         ctx.fill();
         ctx.strokeStyle = "white";
-        ctx.lineWidth = Math.max(1 / zoomLevel, 0.5); // Ensure minimum border width
+        ctx.lineWidth = 1 / zoomLevel;
         ctx.stroke();
     });
 }

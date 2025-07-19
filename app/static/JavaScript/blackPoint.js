@@ -29,11 +29,17 @@ async function openBlackPointModal(imageSrc) {
 
     document.getElementById("downloadBlackPoint").addEventListener("click", async function () {
         const blackPoint = slider.value;
+        const button = document.getElementById("downloadBlackPoint");
+        const originalText = button.innerHTML;
+        button.innerHTML = '<span class="loader"></span>';
+        button.disabled = true;
         const adjustedImage = await adjustBlackPoint(loadedModalImage, blackPoint, true);
         const link = document.createElement("a");
         link.href = adjustedImage;
         link.download = "adjusted_black_point.png";
         link.click();
+        button.disabled = false;
+        button.innerHTML = originalText;
     });
 }
 
