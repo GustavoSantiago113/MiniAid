@@ -4,6 +4,7 @@ import shutil
 from flask import Flask, request, render_template, jsonify, send_file
 import os
 from PIL import Image
+import numpy as np
 from utils import utils
 import cv2
 import io
@@ -208,11 +209,11 @@ def segment_image():
             image_path = image_path.split("/static/")[-1]
             image_path = os.path.join("static", image_path)
 
-        #confidence = data.get('confidence', 0.75)
-        #smooth = data.get('smooth', 0.0005)
+        confidence = data.get('confidence', 0.75)
+        smooth = data.get('smooth', 0.0005)
 
         # Perform inference
-        results = model.predict(image_path, device=device, max_det=1, conf=0.75, save = False, verbose=False)
+        results = model.predict(image_path, device=device, max_det=1, conf=confidence, save = False, verbose=False)
 
         polygons = []
         # Extract segmentation coordinates
@@ -222,12 +223,12 @@ def segment_image():
                 polygons = c.masks.xy[0].astype(int).tolist()
                 
                 # Convert to numpy array for OpenCV
-                #poly_np = np.array(polygons, dtype=np.int32)
+                poly_np = np.array(polygons, dtype=np.int32)
                 # Calculate epsilon (the approximation accuracy)
-                #epsilon = smooth * cv2.arcLength(poly_np, True)
-                #approx = cv2.approxPolyDP(poly_np, epsilon, True)
+                epsilon = smooth * cv2.arcLength(poly_np, True)
+                approx = cv2.approxPolyDP(poly_np, epsilon, True)
                 # Convert back to list of [x, y]
-                #simplified = approx.reshape(-1, 2).tolist()
+                polygons = approx.reshape(-1, 2).tolist()
                 torch.cuda.empty_cache()
         
         if not polygons:

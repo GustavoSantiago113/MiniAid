@@ -22,6 +22,12 @@ const MIN_ZOOM = 0.5;
 async function openSegmentationModal() {
     const modal = document.getElementById("segmentationModal");
     const imageContainer = document.getElementById("imageContainer");
+    const slider = document.getElementById("segmentationConfidenceSlider");
+    const sliderValue = document.getElementById("segmentationConfidenceValue");
+
+    slider.addEventListener("input", function () {
+        sliderValue.textContent = `${slider.value}%`;
+    });
 
     // Reset state
     polygonPoints = [];
@@ -329,28 +335,24 @@ function renderPolygonOnCanvas(canvas, polygon) {
 }
 
 async function reSegment() {
-    
-    if (!lastRectangleCoords) {
-        alert("No rectangle selected.");
-        return;
-    }
     const button = document.getElementById("reRunSegmentation");
     const originalText = button.innerHTML;
     button.innerHTML = '<span class="loader"></span>';
     button.disabled = true;
 
     const qualityMap = {
-      low: 0.001,
-      medium: 0.0005,
-      high: 0.0001
+        low: 0.001,
+        medium: 0.0005,
+        high: 0.0001
     };
 
     const selectElement = document.getElementById("segSmooth");
     const selectedKey = selectElement.value;
     const smooth = qualityMap[selectedKey];
 
-    try {
+    const slider = document.getElementById("segmentationConfidenceSlider");
 
+    try {
         // Send the file to the server with new confidence
         const response = await fetch('/segment-image', {
             method: 'POST',
@@ -359,22 +361,35 @@ async function reSegment() {
             },
             body: JSON.stringify({
                 image_path: loadedModalImage.src,
-                coordinates: lastRectangleCoords,
-                smooth: smooth
+                smooth: smooth,
+                confidence: slider.value / 100 // Convert slider value to a percentage
             }),
         });
 
         const data = await response.json();
 
-        if (data.success) {
-            // Clean old polygons and show new ones
-            polygonPoints = [];
-            renderPolygonOnCanvas(canvas, data.polygon);
+        if (data.success && data.polygons && data.polygons.length > 0) {
+            
+            const canvas = document.getElementById("imageCanvas");
+            
+            // Update polygon points
+            polygonPoints = data.polygons.map(point => {
+                const [origX, origY] = point;
+                const canvasX = (origX / originalWidthImg) * canvas.width;
+                const canvasY = (origY / originalHeightImg) * canvas.height;
+                return [canvasX, canvasY];
+            });
+
+            // Redraw the canvas with updated polygons
+            const ctx = canvas.getContext("2d");
+            redrawCanvas(canvas, ctx);
+        } else if (data.success && (!data.polygons || data.polygons.length === 0)) {
+            alert("No polygons detected. Please adjust the confidence.");
         } else {
             alert("Failed to segment the image.");
         }
     } catch (error) {
-        alert("An error occurred while re-running segmentation.");
+        alert(`An error occurred while re-running segmentation.${error.message}`);
     } finally {
         button.innerHTML = originalText;
         button.disabled = false;

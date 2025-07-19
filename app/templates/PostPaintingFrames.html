@@ -93,6 +93,11 @@
                     
                     <div class = "controls-buttons">
                         <div class="slider-container">
+                            <label for="segmentationConfidence">Segmentation Confidence:</label>
+                            <input type="range" id="segmentationConfidenceSlider" min="0" max="100" value="75" step="1" class="slider">
+                            <span id="segmentationConfidenceValue">75%</span>
+                        </div>
+                        <div class="slider-container">
                             <label for="smooth">Counter smoothness:</label>
                             <select id="segSmooth" class="custom-select">
                                 <option value="low">Low</option>
@@ -244,15 +249,22 @@
         });
 
         const slider = document.getElementById('blackPointSlider');
-
         function updateSlider() {
             const value = slider.value;
             const percent = (value / slider.max) * 100;
             slider.style.setProperty('--slider-percent', percent + '%');
         }
-
         slider.addEventListener('input', updateSlider);
         updateSlider();
+
+        const sliderSegmentation = document.getElementById('segmentationConfidenceSlider');
+        function updateSliderSegmentation() {
+            const value = sliderSegmentation.value;
+            const percent = (value / sliderSegmentation.max) * 100;
+            sliderSegmentation.style.setProperty('--slider-percent', percent + '%');
+        }
+        sliderSegmentation.addEventListener('input', updateSliderSegmentation);
+        updateSliderSegmentation();
 
         document.getElementById("downloadSegmented").addEventListener("click", function() {
             segmentImage();
