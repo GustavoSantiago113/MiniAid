@@ -7,13 +7,30 @@ from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
 import cv2
-import torch
-""" from dust3r.cloud_opt import GlobalAlignerMode, global_aligner
-from dust3r.image_pairs import make_pairs
-from dust3r.inference import inference
-from dust3r.model import AsymmetricCroCo3DStereo
-from dust3r.utils.image import load_images """
 import open3d as o3d
+import os
+import torch
+import sys
+import glob
+import gc
+import time
+
+sys.path.append("../vggt")
+
+from visual_util import predictions_to_glb
+from vggt.models.vggt import VGGT
+from vggt.utils.load_fn import load_and_preprocess_images
+from vggt.utils.pose_enc import pose_encoding_to_extri_intri
+from vggt.utils.geometry import unproject_depth_map_to_point_map
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+model = VGGT()
+_URL = "https://huggingface.co/facebook/VGGT-1B/resolve/main/model.pt"
+model.load_state_dict(torch.hub.load_state_dict_from_url(_URL))
+
+model.eval()
+model = model.to(device)
 
 def rgb2gray(rgb):
     # 2 dimensional array to convert image to sketch
@@ -149,94 +166,6 @@ def crop_image_with_polygon(image_path, polygon):
         print(f"Error in crop_image_with_polygon: {e}")
         raise e
 
-""" def reconstruct_cloud_point(folder_path, progress_callback=None, check_cancelled=None):
-    if check_cancelled and check_cancelled():
-        return None
-        
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    batch_size = 1
-    schedule = "cosine"
-    lr = 0.01
-    niter = 300
-    model_name = "naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt"
-    model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
-
-    if progress_callback:
-        progress_callback("loading", "Loading images...", 5)
-    if check_cancelled and check_cancelled():
-        return None
-
-    images = load_images(folder_path, size=512)
-    
-    if progress_callback:
-        progress_callback("pairing", "Pairing images...", 10)
-    if check_cancelled and check_cancelled():
-        return None
-
-    pairs = make_pairs(images, scene_graph="complete", prefilter=None, symmetrize=True)
-    
-    if progress_callback:
-        progress_callback("inference", "Running inference...", 30)
-    if check_cancelled and check_cancelled():
-        return None
-
-    output = inference(pairs, model, device, batch_size=batch_size)
-    
-    if check_cancelled and check_cancelled():
-        return None
-
-    if progress_callback:
-        progress_callback("aligning", "Global alignement...", 70)
-    
-    scene = global_aligner(
-        output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer
-    )
-    
-    if check_cancelled and check_cancelled():
-        return None
-
-    loss = scene.compute_global_alignment(
-        init="mst", niter=niter, schedule=schedule, lr=lr
-    )
-    
-    if progress_callback:
-        progress_callback("done", "Reconstruction finished!", 100)
-
-    return scene
-
-def poisson_reconstruction_from_point_cloud(
-    input_file, output_mesh_file, depth=9, width=0, scale=1.1, linear_fit=False
-):
-
-    pcd = o3d.io.read_point_cloud(input_file)
-
-    if not pcd.has_normals():
-        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
-        pcd.orient_normals_consistent_tangent_plane(k=30)
-
-    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            pcd, depth=depth, width=width, scale=scale, linear_fit=linear_fit
-        )
-
-    density_colors = np.asarray(densities)
-    density_colors = density_colors / density_colors.max()
-    density_mesh = o3d.geometry.TriangleMesh()
-    density_mesh.vertices = mesh.vertices
-    density_mesh.triangles = mesh.triangles
-    density_mesh.vertex_colors = o3d.utility.Vector3dVector(
-        np.zeros((len(density_mesh.vertices), 3))
-    )
-
-    vertices_to_remove = densities < np.quantile(densities, 0.1)
-    mesh.remove_vertices_by_mask(vertices_to_remove)
-
-    o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
-
-    o3d.io.write_triangle_mesh(output_mesh_file, mesh)
-
-    return mesh """
-
 def adjust_black_point(img, black_point=20):
     """
     Adjust the black point of the image.
@@ -251,3 +180,176 @@ def adjust_black_point(img, black_point=20):
     img = np.clip(img, 0, 255).astype(np.uint8)
 
     return img
+
+def run_model(target_dir, model):
+    """
+    Run the VGGT model on images in the 'target_dir/images' folder and return predictions.
+    """
+    #print(f"Processing images from {target_dir}")
+
+    #start_time = time.time()
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    # Move model to device
+    model = model.to(device)
+    model.eval()
+
+    # Load and preprocess images
+    image_names = glob.glob(os.path.join(target_dir, "images", "*"))
+    image_names = sorted(image_names)
+    #print(f"Found {len(image_names)} images")
+    if len(image_names) == 0:
+        raise ValueError("No images found. Check your upload.")
+
+    images = load_and_preprocess_images(image_names).to(device)
+    #print(f"Preprocessed images shape: {images.shape}")
+
+    # Run inference
+    #print("Running inference...")
+    #dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16
+
+    with torch.no_grad():
+        #with torch.cuda.amp.autocast(dtype=dtype):
+        predictions = model(images)
+
+    # Convert pose encoding to extrinsic and intrinsic matrices
+    #print("Converting pose encoding to extrinsic and intrinsic matrices...")
+    extrinsic, intrinsic = pose_encoding_to_extri_intri(predictions["pose_enc"], images.shape[-2:])
+    predictions["extrinsic"] = extrinsic
+    predictions["intrinsic"] = intrinsic
+
+    # Convert tensors to numpy
+    for key in predictions.keys():
+        if isinstance(predictions[key], torch.Tensor):
+            predictions[key] = predictions[key].cpu().numpy().squeeze(0)  # remove batch dimension
+
+    # Generate world points from depth map
+    #print("Computing world points from depth map...")
+    depth_map = predictions["depth"]  # (S, H, W, 1)
+    world_points = unproject_depth_map_to_point_map(depth_map, predictions["extrinsic"], predictions["intrinsic"])
+    predictions["world_points_from_depth"] = world_points
+
+    # Clean up
+    torch.cuda.empty_cache()
+    return predictions
+
+def perform_reconstruction(target_dir,
+    conf_thres=50.0,
+    frame_filter="All",
+    mask_black_bg=True,
+    mask_white_bg=False,
+    show_cam=False,
+    mask_sky=True,
+    prediction_mode="Pointmap Regression",
+):
+    """
+    Perform reconstruction using the already-created target_dir/images.
+    """
+    if not os.path.isdir(target_dir) or target_dir == "None":
+        return None, "No valid target directory found. Please upload first.", None, None
+
+    start_time = time.time()
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    # Prepare frame_filter dropdown
+    target_dir_images = os.path.join(target_dir, "images")
+    all_files = sorted(os.listdir(target_dir_images)) if os.path.isdir(target_dir_images) else []
+    all_files = [f"{i}: {filename}" for i, filename in enumerate(all_files)]
+    frame_filter_choices = ["All"] + all_files
+
+    print("Running run_model...")
+    with torch.no_grad():
+        predictions = run_model(target_dir, model)
+
+    # Save predictions
+    prediction_save_path = os.path.join(target_dir, "predictions.npz")
+    np.savez(prediction_save_path, **predictions)
+
+    # Handle None frame_filter
+    if frame_filter is None:
+        frame_filter = "All"
+
+    # Build a GLB file name
+    glbfile = os.path.join(
+        target_dir,
+        f"Reconstruction.glb",
+    )
+
+    # Convert predictions to GLB
+    glbscene = predictions_to_glb(
+        predictions,
+        conf_thres=conf_thres,
+        filter_by_frames=frame_filter,
+        mask_black_bg=mask_black_bg,
+        mask_white_bg=mask_white_bg,
+        show_cam=show_cam,
+        mask_sky=mask_sky,
+        target_dir=target_dir,
+        prediction_mode=prediction_mode,
+    )
+    glbscene.export(file_obj=glbfile)
+
+    # Cleanup
+    del predictions
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    #end_time = time.time()
+    #print(f"Total time: {end_time - start_time:.2f} seconds (including IO)")
+    #print(f"Reconstruction Success ({len(all_files)} frames).")
+
+def update_visualization(
+    target_dir, conf_thres, frame_filter, mask_black_bg, mask_white_bg, show_cam, mask_sky, prediction_mode, is_example
+):
+    """
+    Reload saved predictions from npz, create (or reuse) the GLB for new parameters,
+    and return it for the 3D viewer. If is_example == "True", skip.
+    """
+
+    # If it's an example click, skip as requested
+    if is_example == "True":
+        return None, "No reconstruction available. Please click the Reconstruct button first."
+
+    if not target_dir or target_dir == "None" or not os.path.isdir(target_dir):
+        return None, "No reconstruction available. Please click the Reconstruct button first."
+
+    predictions_path = os.path.join(target_dir, "predictions.npz")
+    if not os.path.exists(predictions_path):
+        return None, f"No reconstruction available at {predictions_path}. Please run 'Reconstruct' first."
+
+    key_list = [
+        "pose_enc",
+        "depth",
+        "depth_conf",
+        "world_points",
+        "world_points_conf",
+        "images",
+        "extrinsic",
+        "intrinsic",
+        "world_points_from_depth",
+    ]
+
+    loaded = np.load(predictions_path)
+    predictions = {key: np.array(loaded[key]) for key in key_list}
+
+    glbfile = os.path.join(
+        target_dir,
+        f"Reconstruction.glb",
+    )
+
+    glbscene = predictions_to_glb(
+        predictions,
+        conf_thres=conf_thres,
+        filter_by_frames=frame_filter,
+        mask_black_bg=mask_black_bg,
+        mask_white_bg=mask_white_bg,
+        show_cam=show_cam,
+        mask_sky=mask_sky,
+        target_dir=target_dir,
+        prediction_mode=prediction_mode,
+    )
+    glbscene.export(file_obj=glbfile)
+
+    return glbfile

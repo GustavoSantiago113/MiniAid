@@ -10,15 +10,14 @@ import cv2
 import io
 import atexit
 from ultralytics import YOLO
-import threading
 import torch
+import trimesh
 import open3d as o3d
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['UPLOAD_FOLDER_FRAMES'] = 'static/uploads/frames'
+app.config['UPLOAD_FOLDER_FRAMES'] = 'static/uploads/images'
 app.config['MODELS'] = 'static/models'
-#app.config['RECONSTRUCTION'] = 'static/reconstruction'
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
@@ -37,16 +36,6 @@ def cleanup_upload_folder():
                 shutil.rmtree(file_path)
         except Exception as e:
             print(f'Failed to delete {file_path}. Reason: {e}')
-    
-    """ for filename in os.listdir(app.config['RECONSTRUCTION']):
-        file_path = os.path.join(app.config['RECONSTRUCTION'], filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print(f'Failed to delete {file_path}. Reason: {e}') """
 
 atexit.register(cleanup_upload_folder)
 
@@ -280,9 +269,6 @@ def download_segmented():
         print(f"Error in download_segmented: {e}")
         return jsonify({"error": str(e)}), 500
 
-reconstruction_thread = None
-is_reconstruction_cancelled = False
-
 @app.route("/adjust-black-point", methods=["POST"])
 def adjust_black_point():
     data = request.json
@@ -302,112 +288,80 @@ def adjust_black_point():
     base64_image = base64.b64encode(buffer).decode("utf-8")
     return jsonify({"adjustedImage": f"data:image/png;base64,{base64_image}"})
 
-@app.route("/make-point-cloud", methods=['POST'])
-def point_cloud():
-    global reconstruction_thread, progress_status, is_reconstruction_cancelled
+@app.route("/reconstruction", methods=["POST"])
+def reconstruction():
+    try:
 
-    progress_status = {"stage": "idle", "message": "Waiting...", "percent": 0}
-    is_reconstruction_cancelled = False
+        # Perform reconstruction
+        utils.perform_reconstruction(target_dir=app.config['UPLOAD_FOLDER'])
+        scene = trimesh.load('static/uploads/Reconstruction.glb')
+        point_cloud_trimesh = scene.geometry['geometry_0']
+        points = point_cloud_trimesh.vertices
+        colors = point_cloud_trimesh.colors if hasattr(point_cloud_trimesh, 'colors') else None
 
-    if reconstruction_thread and reconstruction_thread.is_alive():
-        return jsonify({'success': False, 'message': 'Reconstruction is already in progress.'}), 400
+        # Create Open3D point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        if colors is not None:
+            pcd.colors = o3d.utility.Vector3dVector(colors[:, :3] / 255.0)
 
-    images_folder = app.config['UPLOAD_FOLDER_FRAMES']
+        # Save as .ply
+        o3d.io.write_point_cloud('static/uploads/Reconstruction.ply', pcd)
+        return jsonify({"success": True, "message": "Reconstruction completed successfully."})
+    except Exception as e:
+        set_progress("error", f"Reconstruction failed: {str(e)}", 0)
+        return jsonify({"success": False, "message": str(e)}), 500
 
-    def run_reconstruction():
-        global is_reconstruction_cancelled
-        try:
-            set_progress("start", "Starting reconstruction...", 0)
-            
-            # Check cancellation at key points
-            if is_reconstruction_cancelled:
-                set_progress("cancelled", "Reconstruction cancelled", 0)
-                return
+@app.route("/update-visualization", methods=["POST"])
+def update_visualization_endpoint():
+    try:
+        data = request.json
+        confidence = float(data.get("confidence", 50.0))
+        filter_sky = data.get("filterSky", True)
+        filter_black_background = data.get("filterBlackBackground", True)
 
-            scene = utils.reconstruct_cloud_point(
-                images_folder, 
-                progress_callback=set_progress,
-                check_cancelled=lambda: is_reconstruction_cancelled
-            )
+        # Call the update_visualization function
+        target_dir = app.config['UPLOAD_FOLDER']
+        utils.update_visualization(
+            target_dir=target_dir,
+            conf_thres=confidence,
+            frame_filter="All",
+            mask_black_bg=filter_black_background,
+            mask_white_bg=False,
+            show_cam=False,
+            mask_sky=filter_sky,
+            prediction_mode="Pointmap Regression",
+            is_example="False",
+        )
 
-            if is_reconstruction_cancelled:
-                set_progress("cancelled", "Reconstruction cancelled", 0)
-                return
+        scene = trimesh.load('static/uploads/Reconstruction.glb')
+        point_cloud_trimesh = scene.geometry['geometry_0']
+        points = point_cloud_trimesh.vertices
+        colors = point_cloud_trimesh.colors if hasattr(point_cloud_trimesh, 'colors') else None
 
-            scene.show()
-            
-            if not is_reconstruction_cancelled:
-                set_progress("done", "Reconstruction finished!", 100)
-        except Exception as e:
-            cloud_path = "static/reconstruction/point_cloud.ply"
-            pcd = o3d.io.read_point_cloud(cloud_path)
-            o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Reconstructed")
-            if not is_reconstruction_cancelled:
-                set_progress("error", f"Error during reconstruction: {str(e)}", 0)
-        finally:
-            global reconstruction_thread
-            reconstruction_thread = None
+        # Create Open3D point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        if colors is not None:
+            pcd.colors = o3d.utility.Vector3dVector(colors[:, :3] / 255.0)
 
-    # Start a new reconstruction thread
-    reconstruction_thread = threading.Thread(target=run_reconstruction)
-    reconstruction_thread.start()
-    
-    return jsonify({'success': True})
+        # Save as .ply
+        o3d.io.write_point_cloud('static/uploads/Reconstruction.ply', pcd)
 
-@app.route("/reconstruction-progress")
-def reconstruction_progress():
-    return jsonify(progress_status)
-
-@app.route("/cancel-reconstruction", methods=['POST'])
-def cancel_reconstruction():
-    global progress_status, is_reconstruction_cancelled
-    is_reconstruction_cancelled = True
-    progress_status["stage"] = "cancelled"
-    progress_status["message"] = "Reconstruction cancelled"
-    progress_status["percent"] = 0
-    return jsonify({'success': True})
-
-@app.route("/point-cloud-outliers", methods=['POST'])
-def remove_outliers():
-    data = request.json
-    params = data.get('parameters')
-
-    cloud_path = "static/reconstruction/point_cloud.ply"
-    pcd = o3d.io.read_point_cloud(cloud_path)
-    pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=params[0], std_ratio=params[1])
-    o3d.io.write_point_cloud("static/reconstruction/point_cloud_temp.ply", pcd)
-    o3d.visualization.draw_geometries([pcd], window_name="Point Cloud - Outliers removed")
-
-    return jsonify({'success': True})
-
-@app.route("/make-mesh", methods=['POST'])
-def make_mesh():
-
-    data = request.json
-    depth = data.get('depth', 10)
-
-    if(os.path.exists("static/reconstruction/point_cloud_temp.ply")):
-        cloud_path = "static/reconstruction/point_cloud_temp.ply"
-    else:
-        cloud_path = "static/reconstruction/point_cloud.ply"
-    mesh_path = "static/reconstruction/reconstruction.ply"
-    utils.poisson_reconstruction_from_point_cloud(cloud_path, mesh_path, depth=depth)
-
-    return jsonify({'success': True})
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/download-point-cloud", methods=["GET"])
 def download_point_cloud():
-    if(os.path.exists("static/reconstruction/point_cloud_temp.ply")):
-        cloud_path = "static/reconstruction/point_cloud_temp.ply"
-    else:
-        cloud_path = "static/reconstruction/point_cloud.ply"
-    return send_file(cloud_path, as_attachment=True, download_name="point_cloud.ply")
+    try:
+        glbfile = os.path.join(app.config['UPLOAD_FOLDER'], "Reconstruction.ply")
+        if not os.path.exists(glbfile):
+            return jsonify({"success": False, "message": "Reconstruction file not found"}), 404
 
-@app.route("/download-mesh", methods=["GET"])
-def download_mesh():
-    
-    file_path = "static/reconstruction/reconstruction.ply"
-    return send_file(file_path, as_attachment=True, download_name="reconstruction.ply")
+        return send_file(glbfile, as_attachment=True, download_name="Reconstruction.ply")
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/about")
 def about_page():

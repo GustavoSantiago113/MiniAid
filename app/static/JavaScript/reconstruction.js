@@ -1,58 +1,31 @@
-let reconstructionActive = false;
-
-async function openReconstructionModal(){
-    
+async function openReconstructionModal() {
     const modal = document.getElementById("reconstructionModal");
-    const pcTitle = document.getElementById("pointCloudTitle");
-    const fileItems = document.querySelectorAll('.file-item:not(.upload-item)');
-    if (fileItems.length === 1) {
-        alert("Please, upload more than 1 image to perform the reconstruction");
-        return;
-    }
-
-    modal.style.display = "flex";
-
     const statusDiv = document.getElementById("reconstructionStatus");
     const messageDiv = document.getElementById("reconstructionMessage");
     const viewerDiv = document.getElementById("pointCloud");
 
+    const slider = document.getElementById("pointCloudConfidenceSlider");
+    const sliderValue = document.getElementById("pointCloudConfidenceValue");
+
+    slider.addEventListener("input", function () {
+        sliderValue.textContent = `${slider.value}%`;
+    });
+
+    modal.style.display = "flex";
+
+    // Show loading spinner and message
     statusDiv.style.display = "block";
-    pcTitle.style.display = "block";
-    messageDiv.textContent = "Starting reconstruction...";
+    messageDiv.textContent = "Performing reconstruction...";
     viewerDiv.style.display = "none";
 
-    let polling = true;
-
-    function pollProgress() {
-        if (!polling || !reconstructionActive) return;
-
-        fetch('/reconstruction-progress')
-            .then(res => res.json())
-            .then(data => {
-                messageDiv.textContent = data.message;
-
-                if (data.stage === "done") {
-                    polling = false;
-                    messageDiv.textContent = "Reconstruction finished!";
-                    statusDiv.style.display = "none";
-                    viewerDiv.style.display = "block";
-                } else if (data.stage === "cancelled") {
-                    polling = false;
-                    messageDiv.textContent = "Reconstruction cancelled.";
-                } else {
-                    setTimeout(pollProgress, 1000);
-                }
-            });
-    }
-
-    reconstructionActive = true;
     try {
-        const response = await fetch('/make-point-cloud', {
+        const response = await fetch('/reconstruction', {
             method: 'POST'
         });
-        if (response.ok && reconstructionActive) {
-            polling = true;
-            pollProgress();
+        if (response.ok) {
+            statusDiv.style.display = "none";
+            viewerDiv.style.display = "block";
+            loadPointCloud();
         } else {
             const data = await response.json();
             messageDiv.textContent = data.message || "Failed to start reconstruction.";
@@ -62,210 +35,148 @@ async function openReconstructionModal(){
     }
 
     document.querySelectorAll('.modal .close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', async function() {
-            reconstructionActive = false;
-            polling = false;
-
-            // Send cancellation request to backend
-            try {
-                await fetch('/cancel-reconstruction', {
-                    method: 'POST'
-                });
-            } catch (error) {
-                console.error('Failed to cancel reconstruction:', error);
-            }
-
-            this.closest('.modal').style.display = 'none';
+        closeBtn.addEventListener('click', function () {
+            modal.style.display = "none";
         });
     });
-
-    document.getElementById("returnToPointCloud").addEventListener("click", function () {
-        // Hide mesh-related elements
-        document.getElementById("meshTitle").style.display = "none";
-        document.getElementById("adjustMesh").style.display = "none";
-        document.getElementById("downloadMesh").style.display = "none";
-        document.getElementById("meshAdjust").style.display = "none";
-        document.getElementById("meshMakingStatus").style.display = "none";
-
-        // Show point cloud-related elements
-        document.getElementById("pointCloudTitle").style.display = "block";
-        document.getElementById("makeMesh").style.display = "block";
-        document.getElementById("removeOutliers").style.display = "block";
-        document.getElementById("downloadPC").style.display = "block";
-        document.getElementById("pointCloudAdjust").style.display = "block";
-
-        // Hide the return button
-        this.style.display = "none";
-    });
-
 }
 
-async function reSendToPointCloud(){
-    
-    const button = document.getElementById("removeOutliers");
-    const button2 = document.getElementById("downloadPC");
-    const button3 = document.getElementById("makeMesh");
-    const originalText = button.innerHTML;
-    button.innerHTML = '<span class="loader"></span>';
-    button.disabled = true;
-    button2.disabled = true;
-    button3.disabled = true;
+function loadPointCloud() {
+    const container = document.getElementById("pointCloudScene");
+    const loader = document.getElementById("loader-container");
 
-    const qualityMap = {
-      veryLow: [10, 2],
-      low: [10, 1],
-      medium: [20, 2],
-      high: [30, 1],
-      veryHigh: [30, 0.5],
-    };
+    console.log("Starting to load point cloud");
 
-    const selectElement = document.getElementById("outlierRemoval");
-    const selectedKey = selectElement.value;
-    const params = qualityMap[selectedKey];
+    // Load the .glb file
+    fetch('static/uploads/Reconstruction.ply')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.arrayBuffer();
+        })
+        .then(buffer => {
+            console.log("Buffer received, showing viewer and initializing VTK...");
+            
+            // Hide loader first
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            
+            // Show the container using direct DOM manipulation
+            container.style.display = 'block';
+            
+            // Initialize VTK
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [1, 1, 1],
+                containerStyle: {
+                    width: "40vw",
+                    height: "100%",
+                    position: "relative",
+                },
+            });
+
+            const renderer = fullScreenRenderer.getRenderer();
+            const renderWindow = fullScreenRenderer.getRenderWindow();
+
+            const reader = vtk.IO.Geometry.vtkPLYReader.newInstance();
+            const mapper = vtk.Rendering.Core.vtkMapper.newInstance({ scalarVisibility: false });
+            const actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+            actor.setMapper(mapper);
+            mapper.setInputConnection(reader.getOutputPort());
+            renderer.addActor(actor);
+
+            mapper.setScalarVisibility(true);
+            reader.parseAsArrayBuffer(buffer);
+            renderer.resetCamera();
+            renderWindow.render();
+            
+            console.log("Point cloud loaded and rendered successfully");
+        })
+        .catch(error => {
+            console.error("Failed to load point cloud:", error);
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            container.style.display = 'block';
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load 3D model</div>';
+        });
+}
+
+async function updateVisualization() {
+    const confidenceSlider = document.getElementById("pointCloudConfidenceSlider");
+    const filterSkyCheckbox = document.getElementById("filterSkyCheckbox");
+    const filterBlackBackgroundCheckbox = document.getElementById("filterBlackBackgroundCheckbox");
+
+    const loader = document.getElementById("loader-container");
+    const container = document.getElementById("pointCloudScene");
+
+    // Show loader while updating visualization
+    loader.style.display = "flex";
+    container.style.display = "none";
 
     try {
-
-        const response = await fetch('/point-cloud-outliers', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+        const response = await fetch("/update-visualization", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                parameters: params
+                confidence: confidenceSlider.value,
+                filterSky: filterSkyCheckbox.checked,
+                filterBlackBackground: filterBlackBackgroundCheckbox.checked,
             }),
         });
+
+        if (!response.ok) {
+            throw new Error("Failed to update visualization");
+        }
 
         const data = await response.json();
-
         if (data.success) {
-            
+            // Reload the updated point cloud
+            loadPointCloud();
         } else {
-            alert("Failed to remove outliers.");
+            console.error("Error updating visualization:", data.message);
         }
     } catch (error) {
-        alert("An error occurred while re-doing point cloud.");
+        console.error("Error updating visualization:", error);
     } finally {
-        button.innerHTML = originalText;
-        button.disabled = false;
+        loader.style.display = "none";
+        container.style.display = "block";
     }
 }
 
-async function sendToMesh(){
+async function downloadPointCloud() {
 
-    document.getElementById("pointCloudTitle").style.display = "none";
-    document.getElementById("makeMesh").style.display = "none";
-    document.getElementById("removeOutliers").style.display = "none";
-    document.getElementById("downloadPC").style.display = "none";
-    document.getElementById("pointCloudAdjust").style.display = "none";
+    const button = document.getElementById("downloadPC");
 
-    document.getElementById("meshTitle").style.display = "block";
-    document.getElementById("adjustMesh").style.display = "block";
-    document.getElementById("downloadMesh").style.display = "block";
-    document.getElementById("meshAdjust").style.display = "block";
-    document.getElementById("meshMakingStatus").style.display = "block";
-
-     document.getElementById("returnToPointCloud").style.display = "block";
-
-    document.getElementById("adjustMesh").disabled = true;
-    document.getElementById("downloadMesh").disabled = true;
-
-    try {
-        await fetch('/make-mesh', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                depth: 10
-            }),
-        });
-        document.getElementById("meshMakingStatus").style.display = "none";
-    } catch (error) {
-       alert("An error occurred during reconstruction.");
-    }
-
-}
-
-async function reSendToMesh(){
-
-    const button = document.getElementById("adjustMesh");
-    const button2 = document.getElementById("downloadMesh");
     const originalText = button.innerHTML;
     button.innerHTML = '<span class="loader"></span>';
     button.disabled = true;
-    button2.disabled = true;
-
-    const qualityMap = {
-      veryLow: 5,
-      low: 7,
-      medium: 10,
-      high: 13,
-      veryHigh: 15,
-    };
-
-    const selectElement = document.getElementById("depthMesh");
-    const selectedKey = selectElement.value;
-    const depthMesh = qualityMap[selectedKey];
 
     try {
-
-        await fetch('/make-mesh', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                depth: depthMesh
-            }),
+        const response = await fetch("/download-point-cloud", {
+            method: "GET",
         });
 
+        if (!response.ok) {
+            throw new Error("Failed to download point cloud");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = "Reconstruction.ply";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
     } catch (error) {
-        alert("An error occurred while re-doing mesh.");
+        console.error("Error downloading point cloud:", error);
     } finally {
-        button.innerHTML = originalText;
         button.disabled = false;
-    }
-
-}
-
-async function downloadPC() {
-    try {
-        const response = await fetch('/download-point-cloud');
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "point_cloud.ply";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        } else {
-            alert("Failed to download point cloud.");
-        }
-    } catch (error) {
-        alert("An error occurred while downloading the point cloud.");
-    }
-}
-
-async function downloadMesh() {
-    try {
-        const response = await fetch('/download-mesh');
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "reconstruction.ply";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        } else {
-            alert("Failed to download mesh.");
-        }
-    } catch (error) {
-        alert("An error occurred while downloading the mesh.");
+        button.innerHTML = originalText;
     }
 }

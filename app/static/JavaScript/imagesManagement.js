@@ -108,7 +108,7 @@ async function selectImage(filename, previewImage) {
     
     const noSelectionText = document.getElementById('no-selection-text');
     
-    previewImage.src = `static/uploads/frames/${filename}`;
+    previewImage.src = `static/uploads/images/${filename}`;
     previewImage.style.display = 'block';
     noSelectionText.style.display = 'none';
 }

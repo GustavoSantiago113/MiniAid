@@ -9,6 +9,7 @@
         <script src="../static/JavaScript/reconstruction.js"></script>
         <script src="../static/JavaScript/blackPoint.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+        <script src="https://unpkg.com/vtk.js"></script>
     </head>
     <body>
         <div class = "body-head">
@@ -154,74 +155,62 @@
                 </div>
             </div>
         </div>
-
+        
         <div id="reconstructionModal" class="modal">
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
-                    
-                    <button id="returnToPointCloud" style="display: none;" class="return-button-modal">Return</button>
-
-                    <h2 id="pointCloudTitle">Point Cloud Generation</h2>
-                    <h2 id="meshTitle" style="display: none;">Mesh Generation</h2>
-
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <span>Point Cloud Generation</span>
+                    </div>
                     <div id="reconstructionStatus" style="display:none; text-align:center;">
                         <div class="loader"></div>
                         <div id="reconstructionMessage">Starting reconstruction...</div>
                     </div>
+                    <div id="pointCloud" style="display:none;">
+                        <div class = "post-process-controls" id="reconstructionControls" style="gap: 15px;">
 
-                    <div id="meshMakingStatus" style="display:none; text-align:center;">
-                        <div class="loader"></div>
-                        <span>Making Mesh...</span>
-                    </div>
+                             <div id="loader-container">
+                                <div class = "loader">
+                                </div>
+                                <span id="loading3DModelText" style="display:block; text-align:center; margin-top:10px;">Loading 3D model...</span>
+                            </div>
 
-                    <div id="pointCloud">
+                            <div class="image-container" id="pointCloudScene" style="display: none;">
 
-                        <div id="pointCloudAdjust">
-                            <label for="outlier">Outlier Removal:</label>
-                            <select id="outlierRemoval" class="custom-select">
-                                <option value="veryLow">Very Low</option>
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                                <option value="veryHigh">Very High</option>
-                            </select>
+                            </div>
+                            
+                            <div class = "controls-buttons">
+                                <div class="slider-container">
+                                    <label for="pointCloudConfidenceSlider">Confidence:</label>
+                                    <input type="range" id="pointCloudConfidenceSlider" min="0" max="100" value="50" step="1" class="slider">
+                                    <span id="pointCloudConfidenceValue">50%</span>
+                                </div>
+
+                                <div class="checkbox-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="filterSkyCheckbox" value="Filter Sky" checked />
+                                    Filter Sky
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="filterBlackBackgroundCheckbox" value="Filter Black Background" checked />
+                                    Filter Black Background
+                                </label>
+                            </div>
+
+                                <div class = "adjustment-buttons">
+                                    <div class = "action-button" id="reRunPC">
+                                        <img src="../static/icons/reRun.png" class="button-icon">
+                                        Update View
+                                    </div>
+                                    <div class = "action-button" id="downloadPC">
+                                        <img src="../static/icons/download.png" class="button-icon">
+                                        Download
+                                    </div>
+                                </div>
+                            </div>
+                            
                         </div>
-
-                        <div id="meshAdjust" style="display: none;">
-                            <label for="depthMesh">Mesh Details:</label>
-                            <select id="depthMesh" class="custom-select">
-                                <option value="veryLow">Very Low</option>
-                                <option value="low">Low</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="high">High</option>
-                                <option value="veryHigh">Very High</option>
-                            </select>
-                        </div>
-                        
-                        <div class = "adjustment-buttons">
-                            <div class = "action-button" id="removeOutliers">
-                                <img src="../static/icons/reRun.png" class="button-icon">
-                                Remove Outliers
-                            </div>
-                            <div class = "action-button" id="adjustMesh" style="display: none;">
-                                <img src="../static/icons/reRun.png" class="button-icon">
-                                Adjust Mesh
-                            </div>
-                            <div class = "action-button" id="downloadPC">
-                                <img src="../static/icons/download.png" class="button-icon">
-                                Download Point Cloud
-                            </div>
-                            <div class = "action-button" id="downloadMesh" style="display: none;">
-                                <img src="../static/icons/download.png" class="button-icon">
-                                Download Mesh
-                            </div>
-                            <div class = "action-button" id="makeMesh">
-                                <img src="../static/icons/sculpture.png" class="button-icon">
-                                Generate mesh
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
@@ -266,6 +255,15 @@
         sliderSegmentation.addEventListener('input', updateSliderSegmentation);
         updateSliderSegmentation();
 
+        const sliderPointCloud = document.getElementById('pointCloudConfidenceSlider');
+        function updateSliderPointCloud() {
+            const value = sliderPointCloud.value;
+            const percent = (value / sliderPointCloud.max) * 100;
+            sliderPointCloud.style.setProperty('--slider-percent', percent + '%');
+        }
+        sliderPointCloud.addEventListener('input', updateSliderPointCloud);
+        updateSliderPointCloud();
+
         document.getElementById("downloadSegmented").addEventListener("click", function() {
             segmentImage();
         });
@@ -274,24 +272,13 @@
             reSegment();
         });
 
-        document.getElementById("removeOutliers").addEventListener("click", function() {
-            reSendToPointCloud();
-        });
-
-        document.getElementById("makeMesh").addEventListener("click", function() {
-            sendToMesh();
-        });
-
-        document.getElementById("adjustMesh").addEventListener("click", function() {
-            reSendToMesh();
+        document.getElementById("reRunPC").addEventListener("click", function() {
+            updateVisualization();
         });
 
         document.getElementById("downloadPC").addEventListener("click", function() {
-            downloadPC();
+            downloadPointCloud();
         });
 
-        document.getElementById("downloadMesh").addEventListener("click", function() {
-            downloadMesh();
-        });
     </script>
 </html>

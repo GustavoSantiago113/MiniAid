@@ -59,12 +59,11 @@
 
             <div class="section row">
                 <div class="text">
-                    <p>To segment the images, I used SAM2 Large from Ultralytics. 
-                        SAM2 is an improved and more powerful version of the original Segment Anything Model (SAM) developed by Meta AI.
-                        While the first SAM demonstrated groundbreaking capability in segmenting objects in images with minimal user input (such as a click or a bounding box), SAM2 pushes the boundaries further with enhanced accuracy, robustness, and efficiency.
-                        SAM2 incorporates architectural advancements and training improvements that enable it to produce more precise segmentations across a wider range of objects, scenes, and image qualities.
-                        It also offers better generalization to complex visual tasks and supports multimodal inputs, such as combining text and visual cues for segmentation.
-                        Despite its increased capabilities, SAM2 is optimized for scalability and performance, making it suitable for integration in cloud-based pipelines, research workflows, and advanced computer vision applications in fields like robotics, geospatial analysis, autonomous systems, and large-scale data labeling.
+                    <p>To segment the images, I used Yolov11 from Ultralytics, trained on multiple miniature images on various scenarios. 
+                        YOLOv11 is an advanced object detection model developed by Ultralytics, building upon the strengths of previous YOLO (You Only Look Once) versions. 
+                        It is designed for real-time detection and segmentation tasks, offering improved accuracy, speed, and efficiency. 
+                        YOLOv11 introduces architectural enhancements, better training strategies, and optimized performance for a wide range of scenarios, including small object detection and challenging lighting conditions.
+                        Its versatility and ease of use make it popular for applications in computer vision, such as image segmentation, autonomous systems, and industrial automation.
                     </p>
                 </div>
                 <div class="image-about">
@@ -76,14 +75,16 @@
 
             <div class="section row reverse">
                 <div class="image-about">
-                    <img src="../static/images/naver.png">
+                    <img src="../static/images/Meta AI.png">
                 </div>
                 <div class="text">
-                    <p>To perform the 3D reconstruction, I used Dust3r. 
-                        DUST3R is an AI model developed to reconstruct 3D structures from 2D images, even when there are no camera calibration parameters or depth annotations.
-                        It uses self-supervised learning to understand depth and geometry from image pairs, learning how scenes and objects transform from different views.
-                        The key innovation of DUST3R is its ability to match features across images and estimate camera motion and depth maps—all without needing manually labeled data.
-                        This makes it powerful for applications like drone mapping, virtual reality, cultural heritage preservation, and robotics, where 3D understanding from limited input is crucial.
+                    <p>
+                        I used VGGT for 3D reconstruction, which is a state-of-the-art model developed by Meta AI.
+                        VGGT is a feed-forward neural network that directly infers all key 3D attributes of a scene—including camera parameters, point maps, depth maps, and 3D point tracks—from one or more views.
+                        This approach advances 3D computer vision by unifying tasks that were previously handled by specialized models. VGGT is simple, efficient (reconstructing images in under one second), and outperforms alternatives even without post-processing.
+                        It achieves state-of-the-art results in camera parameter estimation, multi-view depth estimation, dense point cloud reconstruction, and point tracking. Pretrained VGGT also improves downstream tasks like non-rigid point tracking and novel view synthesis.
+                        VGGT patchifies input images into tokens using DINO and appends camera tokens for prediction. It alternates between frame-wise and global self-attention layers.
+                        A camera head predicts camera extrinsics and intrinsics, while a DPT head produces dense outputs such as depth maps, point maps, or feature maps for tracking.
                     </p>
                 </div>
             </div>
