@@ -1,6 +1,6 @@
 frames/
-models/
 app/static/models/
 backgroundFunctions/
-vggt/
 skyseg.onnx
+Miniatures
+runs

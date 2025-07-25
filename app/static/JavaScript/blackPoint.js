@@ -34,10 +34,14 @@ async function openBlackPointModal(imageSrc) {
         button.innerHTML = '<span class="loader"></span>';
         button.disabled = true;
         const adjustedImage = await adjustBlackPoint(loadedModalImage, blackPoint, true);
-        const link = document.createElement("a");
-        link.href = adjustedImage;
-        link.download = "adjusted_black_point.png";
-        link.click();
+
+        // Instead of downloading via link, call Python API
+        if (window.pywebview) {
+            await window.pywebview.api.save_black_point_image(adjustedImage);
+        } else {
+            alert("Download not supported in this environment.");
+        }
+
         button.disabled = false;
         button.innerHTML = originalText;
     });

@@ -491,7 +491,7 @@ async function segmentImage(){
         button.innerHTML = '<span class="loader"></span>';
         button.disabled = true;
 
-        try{
+        try {
             // Send the file to the server
             const response = await fetch('/download-segmented', {
                 method: 'POST',
@@ -503,18 +503,20 @@ async function segmentImage(){
                     polygon: coordinates 
                 }),
             });
-                
+
             if (response.ok) {
+                // Convert blob to base64 and call PyWebview API
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "segmented.png";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
+                const reader = new FileReader();
+                reader.onloadend = async function () {
+                    const base64data = reader.result;
+                    if (window.pywebview) {
+                        await window.pywebview.api.save_segmented_image(base64data);
+                    } else {
+                        alert("Download not supported in this environment.");
+                    }
+                };
+                reader.readAsDataURL(blob);
             } else {
                 const errorData = await response.json();
                 alert(`Failed to download segmented image: ${errorData.error || 'Unknown error'}`);

@@ -175,8 +175,8 @@ async function generatePDF(croppedFilename){
     button.innerHTML = '<span class="loader"></span>';
     button.disabled = true;
 
-    try{
-        const colorItems = document.querySelectorAll(".part-item"); // Adjust selector as needed
+    try {
+        const colorItems = document.querySelectorAll(".part-item");
         let textColorDict = {};
 
         colorItems.forEach(item => {
@@ -184,7 +184,7 @@ async function generatePDF(croppedFilename){
             const color = item.querySelector(".color-box").style.backgroundColor;
             textColorDict[text] = rgbToHex(color);
         });
-        
+
         const response = await fetch("/export-pdf", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -192,14 +192,18 @@ async function generatePDF(croppedFilename){
         });
 
         if (response.ok) {
+            // Convert blob to base64 and call PyWebview API
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "color_palette.pdf";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const reader = new FileReader();
+            reader.onloadend = async function () {
+                const base64data = reader.result;
+                if (window.pywebview) {
+                    await window.pywebview.api.save_pdf_file(base64data);
+                } else {
+                    alert("Download not supported in this environment.");
+                }
+            };
+            reader.readAsDataURL(blob);
         } else {
             alert("Failed to generate PDF.");
         }

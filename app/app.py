@@ -13,6 +13,7 @@ from ultralytics import YOLO
 import torch
 import trimesh
 import open3d as o3d
+import webview
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -367,5 +368,53 @@ def download_point_cloud():
 def about_page():
     return render_template('About.html')
 
+class Api:
+    def save_black_point_image(self, base64_image):
+        # Remove prefix if present
+        if base64_image.startswith("data:image"):
+            base64_image = base64_image.split(",")[1]
+        file_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, save_filename="adjusted_black_point.png")
+        if file_path:
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(base64_image))
+        return True
+
+    def save_reconstruction_file(self):
+        # Save the Reconstruction.ply file to user location
+        src_path = os.path.join(app.config['UPLOAD_FOLDER'], "Reconstruction.ply")
+        if not os.path.exists(src_path):
+            return False
+        file_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, save_filename="Reconstruction.ply")
+        if file_path:
+            with open(src_path, "rb") as src, open(file_path, "wb") as dst:
+                dst.write(src.read())
+            return True
+        return False
+
+    def save_segmented_image(self, base64_image):
+        # Remove prefix if present
+        if base64_image.startswith("data:image"):
+            base64_image = base64_image.split(",")[1]
+        file_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, save_filename="segmented.png")
+        if file_path:
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(base64_image))
+        return True
+
+    def save_pdf_file(self, base64_pdf):
+        # Remove prefix if present
+        if base64_pdf.startswith("data:application/pdf"):
+            base64_pdf = base64_pdf.split(",")[1]
+        file_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, save_filename="color_palette.pdf")
+        if file_path:
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(base64_pdf))
+        return True
+
+# In your main app setup:
+api = Api()
+webview.create_window('MiniAid', app, js_api=api)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    #app.run(host="0.0.0.0", port=5000)
+    webview.start()

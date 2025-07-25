@@ -156,23 +156,12 @@ async function downloadPointCloud() {
     button.disabled = true;
 
     try {
-        const response = await fetch("/download-point-cloud", {
-            method: "GET",
-        });
-
-        if (!response.ok) {
-            throw new Error("Failed to download point cloud");
+        // Use PyWebview API to save the file
+        if (window.pywebview) {
+            await window.pywebview.api.save_reconstruction_file();
+        } else {
+            alert("Download not supported in this environment.");
         }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = "Reconstruction.ply";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
     } catch (error) {
         console.error("Error downloading point cloud:", error);
     } finally {

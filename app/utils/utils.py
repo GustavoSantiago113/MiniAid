@@ -15,7 +15,7 @@ import glob
 import gc
 import time
 
-sys.path.append("../vggt")
+sys.path.append("./vggt")
 
 from visual_util import predictions_to_glb
 from vggt.models.vggt import VGGT
