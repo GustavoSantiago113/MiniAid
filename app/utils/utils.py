@@ -7,7 +7,6 @@ from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
 from PIL import Image as PILImage
 import cv2
-import open3d as o3d
 import os
 import torch
 import sys
