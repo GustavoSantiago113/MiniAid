@@ -265,7 +265,11 @@
         updateSliderPointCloud();
 
         document.getElementById("downloadSegmented").addEventListener("click", function() {
-            segmentImage();
+            downloadSegmentedImage();
+        });
+
+        document.getElementById("downloadBlackPoint").addEventListener("click", function() {
+            downloadBlackPointImage();
         });
 
         document.getElementById("reRunSegmentation").addEventListener("click", function() {

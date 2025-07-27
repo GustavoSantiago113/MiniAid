@@ -41,70 +41,6 @@ async function openReconstructionModal() {
     });
 }
 
-function loadPointCloud() {
-    const container = document.getElementById("pointCloudScene");
-    const loader = document.getElementById("loader-container");
-
-    console.log("Starting to load point cloud");
-
-    // Load the .glb file
-    fetch('static/uploads/Reconstruction.ply')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.arrayBuffer();
-        })
-        .then(buffer => {
-            console.log("Buffer received, showing viewer and initializing VTK...");
-            
-            // Hide loader first
-            if (loader) {
-                loader.style.display = 'none';
-            }
-            
-            // Show the container using direct DOM manipulation
-            container.style.display = 'block';
-            
-            // Initialize VTK
-            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
-                rootContainer: container,
-                background: [1, 1, 1],
-                containerStyle: {
-                    width: "40vw",
-                    height: "100%",
-                    position: "relative",
-                },
-            });
-
-            const renderer = fullScreenRenderer.getRenderer();
-            const renderWindow = fullScreenRenderer.getRenderWindow();
-
-            const reader = vtk.IO.Geometry.vtkPLYReader.newInstance();
-            const mapper = vtk.Rendering.Core.vtkMapper.newInstance({ scalarVisibility: false });
-            const actor = vtk.Rendering.Core.vtkActor.newInstance();
-
-            actor.setMapper(mapper);
-            mapper.setInputConnection(reader.getOutputPort());
-            renderer.addActor(actor);
-
-            mapper.setScalarVisibility(true);
-            reader.parseAsArrayBuffer(buffer);
-            renderer.resetCamera();
-            renderWindow.render();
-            
-            console.log("Point cloud loaded and rendered successfully");
-        })
-        .catch(error => {
-            console.error("Failed to load point cloud:", error);
-            if (loader) {
-                loader.style.display = 'none';
-            }
-            container.style.display = 'block';
-            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load 3D model</div>';
-        });
-}
-
 async function updateVisualization() {
     const confidenceSlider = document.getElementById("pointCloudConfidenceSlider");
     const filterSkyCheckbox = document.getElementById("filterSkyCheckbox");
@@ -180,4 +116,71 @@ async function downloadPointCloud() {
         button.disabled = false;
         button.innerHTML = originalText;
     }
+}
+
+function loadPointCloud() {
+    const container = document.getElementById("pointCloudScene");
+    const loader = document.getElementById("loader-container");
+
+    console.log("Starting to load point cloud");
+
+    // Hide loader first
+    if (loader) {
+        loader.style.display = 'none';
+    }
+
+    // Show the container
+    container.style.display = 'block';
+
+    // Append a cache-busting query parameter to the .ply file URL
+    const plyFileUrl = `static/uploads/Reconstruction.ply?timestamp=${new Date().getTime()}`;
+
+    // Load the .ply file
+    fetch(plyFileUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.arrayBuffer();
+        })
+        .then(buffer => {
+            console.log("Buffer received, showing viewer and initializing VTK...");
+            
+            // Initialize VTK
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [1, 1, 1],
+                containerStyle: {
+                    width: "40vw",
+                    height: "100%",
+                    position: "relative",
+                },
+            });
+
+            const renderer = fullScreenRenderer.getRenderer();
+            const renderWindow = fullScreenRenderer.getRenderWindow();
+
+            const reader = vtk.IO.Geometry.vtkPLYReader.newInstance();
+            const mapper = vtk.Rendering.Core.vtkMapper.newInstance({ scalarVisibility: false });
+            const actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+            actor.setMapper(mapper);
+            mapper.setInputConnection(reader.getOutputPort());
+            renderer.addActor(actor);
+
+            mapper.setScalarVisibility(true);
+            reader.parseAsArrayBuffer(buffer);
+            renderer.resetCamera();
+            renderWindow.render();
+            
+            console.log("Point cloud loaded and rendered successfully");
+        })
+        .catch(error => {
+            console.error("Failed to load point cloud:", error);
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            container.style.display = 'block';
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load 3D model</div>';
+        });
 }
