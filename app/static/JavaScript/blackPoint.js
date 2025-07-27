@@ -28,22 +28,37 @@ async function openBlackPointModal(imageSrc) {
     });
 
     document.getElementById("downloadBlackPoint").addEventListener("click", async function () {
+        const slider = document.getElementById("blackPointSlider");
         const blackPoint = slider.value;
+
         const button = document.getElementById("downloadBlackPoint");
         const originalText = button.innerHTML;
         button.innerHTML = '<span class="loader"></span>';
         button.disabled = true;
-        const adjustedImage = await adjustBlackPoint(loadedModalImage, blackPoint, true);
 
-        // Instead of downloading via link, call Python API
-        if (window.pywebview) {
-            await window.pywebview.api.save_black_point_image(adjustedImage);
-        } else {
-            alert("Download not supported in this environment.");
+        try {
+            const response = await fetch("/adjust-black-point", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ imageSrc: loadedModalImage, blackPoint: blackPoint }),
+            });
+
+            const data = await response.json();
+            const base64Image = data.adjustedImage;
+
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = base64Image;
+            a.download = "adjusted_black_point.png";
+            document.body.appendChild(a);
+            a.click();
+        } catch (error) {
+            console.error("Error downloading black point image:", error);
+            alert("An error occurred while downloading the image.");
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
-
-        button.disabled = false;
-        button.innerHTML = originalText;
     });
 }
 

@@ -481,7 +481,7 @@ function getUpdatedPolygonOriginalScale() {
     ]);
 }
 
-async function segmentImage(){
+async function downloadSegmentedImage() {
     const coordinates = getUpdatedPolygonOriginalScale();
 
     if (coordinates && coordinates.length > 0) {
@@ -492,31 +492,25 @@ async function segmentImage(){
         button.disabled = true;
 
         try {
-            // Send the file to the server
             const response = await fetch('/download-segmented', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    image_path: loadedModalImage.src, 
-                    polygon: coordinates 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_path: loadedModalImage.src,
+                    polygon: coordinates
                 }),
             });
 
             if (response.ok) {
-                // Convert blob to base64 and call PyWebview API
                 const blob = await response.blob();
-                const reader = new FileReader();
-                reader.onloadend = async function () {
-                    const base64data = reader.result;
-                    if (window.pywebview) {
-                        await window.pywebview.api.save_segmented_image(base64data);
-                    } else {
-                        alert("Download not supported in this environment.");
-                    }
-                };
-                reader.readAsDataURL(blob);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.style.display = "none";
+                a.href = url;
+                a.download = "segmented.png";
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
             } else {
                 const errorData = await response.json();
                 alert(`Failed to download segmented image: ${errorData.error || 'Unknown error'}`);

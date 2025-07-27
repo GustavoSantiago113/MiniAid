@@ -167,8 +167,7 @@ async function collorPalletMake(){
     partInput.value = "";
 }
 
-async function generatePDF(croppedFilename){
-
+async function downloadPDF(croppedFilename) {
     const button = document.getElementById("generatePDF");
 
     const originalText = button.innerHTML;
@@ -192,28 +191,25 @@ async function generatePDF(croppedFilename){
         });
 
         if (response.ok) {
-            // Convert blob to base64 and call PyWebview API
             const blob = await response.blob();
-            const reader = new FileReader();
-            reader.onloadend = async function () {
-                const base64data = reader.result;
-                if (window.pywebview) {
-                    await window.pywebview.api.save_pdf_file(base64data);
-                } else {
-                    alert("Download not supported in this environment.");
-                }
-            };
-            reader.readAsDataURL(blob);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = "color_palette.pdf";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
         } else {
             alert("Failed to generate PDF.");
         }
-    } catch(error){
+    } catch (error) {
+        console.error("Error exporting PDF:", error);
         alert("An error occurred while exporting the PDF.");
-    } finally{
+    } finally {
         button.innerHTML = originalText;
         button.disabled = false;
     }
-    
 }
 
 function rgbToHex(rgb) {

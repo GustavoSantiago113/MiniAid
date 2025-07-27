@@ -148,7 +148,6 @@ async function updateVisualization() {
 }
 
 async function downloadPointCloud() {
-
     const button = document.getElementById("downloadPC");
 
     const originalText = button.innerHTML;
@@ -156,14 +155,27 @@ async function downloadPointCloud() {
     button.disabled = true;
 
     try {
-        // Use PyWebview API to save the file
-        if (window.pywebview) {
-            await window.pywebview.api.save_reconstruction_file();
+        const response = await fetch('/download-point-cloud', {
+            method: 'GET',
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = "Reconstruction.ply";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
         } else {
-            alert("Download not supported in this environment.");
+            const errorData = await response.json();
+            alert(`Failed to download point cloud: ${errorData.message || 'Unknown error'}`);
         }
     } catch (error) {
         console.error("Error downloading point cloud:", error);
+        alert("An error occurred while downloading the point cloud.");
     } finally {
         button.disabled = false;
         button.innerHTML = originalText;
