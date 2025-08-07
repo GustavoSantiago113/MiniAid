@@ -167,7 +167,7 @@ async function collorPalletMake(){
     partInput.value = "";
 }
 
-async function downloadPDF(croppedFilename) {
+async function generatePDF(croppedFilename) {
     const button = document.getElementById("generatePDF");
 
     const originalText = button.innerHTML;

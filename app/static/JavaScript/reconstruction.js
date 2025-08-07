@@ -124,6 +124,7 @@ function loadPointCloud() {
 
     console.log("Starting to load point cloud");
 
+    
     // Hide loader first
     if (loader) {
         loader.style.display = 'none';
