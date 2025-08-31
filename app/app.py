@@ -320,6 +320,8 @@ def update_visualization_endpoint():
         filter_sky = data.get("filterSky", True)
         filter_black_background = data.get("filterBlackBackground", True)
 
+        print(f"Updating visualization with confidence: {confidence}, filterSky: {filter_sky}, filterBlackBackground: {filter_black_background}")
+
         # Call the update_visualization function
         target_dir = app.config['UPLOAD_FOLDER']
         utils.update_visualization(
@@ -345,11 +347,14 @@ def update_visualization_endpoint():
         if colors is not None:
             pcd.colors = o3d.utility.Vector3dVector(colors[:, :3] / 255.0)
 
-        # Save as .ply
-        o3d.io.write_point_cloud('static/uploads/Reconstruction.ply', pcd)
+        # Save as .ply with timestamp for verification
+        ply_path = 'static/uploads/Reconstruction.ply'
+        o3d.io.write_point_cloud(ply_path, pcd)
+        print(f"PLY file updated at: {ply_path}, file size: {os.path.getsize(ply_path)} bytes")
 
         return jsonify({"success": True})
     except Exception as e:
+        print(f"Error in update_visualization: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/download-point-cloud", methods=["GET"])

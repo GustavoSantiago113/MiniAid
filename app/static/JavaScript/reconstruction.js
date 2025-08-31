@@ -118,23 +118,42 @@ async function downloadPointCloud() {
     }
 }
 
+let vtkRendererInstance = null;
+
 function loadPointCloud() {
     const container = document.getElementById("pointCloudScene");
     const loader = document.getElementById("loader-container");
-
-    console.log("Starting to load point cloud");
-
     
+    if (typeof vtk === "undefined") {
+        console.error("VTK.js not loaded");
+        container.innerHTML = '<div style="color: #dc3545; padding:20px; text-align:center;">VTK.js not loaded</div>';
+        return;
+    }
+
     // Hide loader first
     if (loader) {
         loader.style.display = 'none';
     }
 
+    container.innerHTML = '';
+    if (vtkRendererInstance) {
+        try {
+            vtkRendererInstance.delete();
+        } catch (e) {
+            console.warn("Error destroying previous VTK instance:", e);
+        }
+        vtkRendererInstance = null;
+    }
+
     // Show the container
     container.style.display = 'block';
+    container.style.height = '600px';
 
-    // Append a cache-busting query parameter to the .ply file URL
-    const plyFileUrl = `static/uploads/Reconstruction.ply?timestamp=${new Date().getTime()}`;
+
+    const timestamp = new Date().getTime();
+    const plyFileUrl = `static/uploads/Reconstruction.ply?v=${timestamp}`;
+
+    console.log("Loading PLY file:", plyFileUrl);
 
     // Load the .ply file
     fetch(plyFileUrl)
@@ -142,6 +161,7 @@ function loadPointCloud() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+            console.log("PLY file fetched successfully");
             return response.arrayBuffer();
         })
         .then(buffer => {
@@ -150,13 +170,15 @@ function loadPointCloud() {
             // Initialize VTK
             const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
                 rootContainer: container,
-                background: [1, 1, 1],
+                background: [0.9, 0.9, 0.9],
                 containerStyle: {
                     width: "40vw",
                     height: "100%",
                     position: "relative",
                 },
             });
+
+            vtkRendererInstance = fullScreenRenderer;
 
             const renderer = fullScreenRenderer.getRenderer();
             const renderWindow = fullScreenRenderer.getRenderWindow();
@@ -171,6 +193,7 @@ function loadPointCloud() {
 
             mapper.setScalarVisibility(true);
             reader.parseAsArrayBuffer(buffer);
+
             renderer.resetCamera();
             renderWindow.render();
             
