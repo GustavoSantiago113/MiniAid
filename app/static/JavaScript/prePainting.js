@@ -120,10 +120,12 @@ async function collorPalletMake(){
         textInput.value = partName.textContent;
         textInput.classList.add("edit-input");
 
+        const currentColor = rgbToHex(colorBox.style.backgroundColor);
+
         // Create color picker for color edit
         const colorInput = document.createElement("input");
         colorInput.type = "color";
-        colorInput.value = colorBox.style.backgroundColor;
+        colorInput.value = currentColor;
         colorInput.classList.add("edit-color-picker");
 
         // Create save button
