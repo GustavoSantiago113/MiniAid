@@ -120,6 +120,17 @@ async function downloadPointCloud() {
 
 let vtkRendererInstance = null;
 
+// Keep state for picking/deleting
+const pcState = {
+    polyData: null,
+    renderer: null,
+    renderWindow: null,
+    picker: null,
+    selected: new Set(),
+    baseColors: null,   // Uint8Array copy of original colors
+    scalars: null       // vtkDataArray currently used as scalars (mutable)
+};
+
 function loadPointCloud() {
     const container = document.getElementById("pointCloudScene");
     const loader = document.getElementById("loader-container");
@@ -130,81 +141,236 @@ function loadPointCloud() {
         return;
     }
 
-    // Hide loader first
-    if (loader) {
-        loader.style.display = 'none';
-    }
+    if (loader) loader.style.display = 'none';
 
     container.innerHTML = '';
     if (vtkRendererInstance) {
-        try {
-            vtkRendererInstance.delete();
-        } catch (e) {
-            console.warn("Error destroying previous VTK instance:", e);
-        }
+        try { vtkRendererInstance.delete(); } catch (e) { console.warn("Error destroying previous VTK instance:", e); }
         vtkRendererInstance = null;
     }
 
-    // Show the container
     container.style.display = 'block';
     container.style.height = '600px';
 
-
-    const timestamp = new Date().getTime();
-    const plyFileUrl = `static/uploads/Reconstruction.ply?v=${timestamp}`;
-
-    console.log("Loading PLY file:", plyFileUrl);
-
-    // Load the .ply file
+    const plyFileUrl = `static/uploads/Reconstruction.ply?v=${Date.now()}`;
     fetch(plyFileUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            console.log("PLY file fetched successfully");
-            return response.arrayBuffer();
-        })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then(buffer => {
-            console.log("Buffer received, showing viewer and initializing VTK...");
-            
-            // Initialize VTK
             const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
                 rootContainer: container,
                 background: [0.9, 0.9, 0.9],
-                containerStyle: {
-                    width: "40vw",
-                    height: "100%",
-                    position: "relative",
-                },
+                containerStyle: { width: "100%", height: "600px", position: "relative" },
             });
-
             vtkRendererInstance = fullScreenRenderer;
 
             const renderer = fullScreenRenderer.getRenderer();
             const renderWindow = fullScreenRenderer.getRenderWindow();
 
+            // Pipeline
             const reader = vtk.IO.Geometry.vtkPLYReader.newInstance();
-            const mapper = vtk.Rendering.Core.vtkMapper.newInstance({ scalarVisibility: false });
+            const mapper = vtk.Rendering.Core.vtkMapper.newInstance();
             const actor = vtk.Rendering.Core.vtkActor.newInstance();
 
             actor.setMapper(mapper);
             mapper.setInputConnection(reader.getOutputPort());
-            renderer.addActor(actor);
+            // Render as points and increase size for better clicking
+            actor.getProperty().setRepresentationToPoints();
+            actor.getProperty().setPointSize(3.0);
 
-            mapper.setScalarVisibility(true);
             reader.parseAsArrayBuffer(buffer);
 
+            const polyData = reader.getOutputData();
+
+            // Ensure we have per-vertex RGB scalars to allow highlighting
+            let scalars = polyData.getPointData().getScalars();
+            const vtkDataArray = vtk.Common.Core.vtkDataArray;
+            const numPts = polyData.getPoints().getNumberOfPoints();
+
+            if (!scalars) {
+                // Create white colors
+                const values = new Uint8Array(numPts * 3);
+                values.fill(255);
+                scalars = vtkDataArray.newInstance({
+                    name: 'Colors',
+                    numberOfComponents: 3,
+                    values,
+                });
+                polyData.getPointData().setScalars(scalars);
+            } else if (scalars.getNumberOfComponents() > 3) {
+                // If RGBA, strip alpha into RGB for simplicity
+                const src = scalars.getData();
+                const rgb = new Uint8Array(numPts * 3);
+                for (let i = 0; i < numPts; i++) {
+                    rgb[i * 3 + 0] = src[i * 4 + 0];
+                    rgb[i * 3 + 1] = src[i * 4 + 1];
+                    rgb[i * 3 + 2] = src[i * 4 + 2];
+                }
+                scalars = vtkDataArray.newInstance({
+                    name: 'Colors',
+                    numberOfComponents: 3,
+                    values: rgb,
+                });
+                polyData.getPointData().setScalars(scalars);
+            }
+
+            // Keep a copy of original colors to restore when deselecting
+            pcState.baseColors = new Uint8Array(scalars.getData());
+            pcState.scalars = scalars;
+
+            renderer.addActor(actor);
             renderer.resetCamera();
             renderWindow.render();
-            
-            console.log("Point cloud loaded and rendered successfully");
-        })
-        .catch(error => {
-            console.error("Failed to load point cloud:", error);
-            if (loader) {
-                loader.style.display = 'none';
+
+            // Picker setup
+            const picker = (vtk.Rendering.Core.vtkPointPicker && vtk.Rendering.Core.vtkPointPicker.newInstance)
+                ? vtk.Rendering.Core.vtkPointPicker.newInstance()
+                : vtk.Rendering.Core.vtkPicker.newInstance();
+            pcState.polyData = polyData;
+            pcState.renderer = renderer;
+            pcState.renderWindow = renderWindow;
+            pcState.picker = picker;
+            pcState.selected.clear();
+
+            const interactor = renderWindow.getInteractor();
+
+            // Toggle selection with left click
+            interactor.onLeftButtonPress((callData) => {
+                const pos = callData?.position;
+                if (!pos) return;
+                // pick expects [x, y, z] display coords
+                picker.pick([pos.x, pos.y, 0], renderer);
+                // Prefer pointId if available; else try to derive from cell/mapper
+                let pid = typeof picker.getPointId === 'function' ? picker.getPointId() : -1;
+
+                if (pid < 0 && typeof picker.getCellId === 'function') {
+                    // Fallback: try to map picked cell's closest point (approx)
+                    const cellId = picker.getCellId();
+                    if (cellId >= 0 && polyData.getPoints()) {
+                        // Very naive: use picked world pos to find nearest point (O(N))
+                        const worldPos = picker.getPickPosition?.() || null;
+                        if (worldPos) {
+                            const pts = polyData.getPoints().getData();
+                            let best = -1, bestD = Infinity;
+                            for (let i = 0; i < numPts; i++) {
+                                const dx = pts[i * 3 + 0] - worldPos[0];
+                                const dy = pts[i * 3 + 1] - worldPos[1];
+                                const dz = pts[i * 3 + 2] - worldPos[2];
+                                const d = dx*dx + dy*dy + dz*dz;
+                                if (d < bestD) { bestD = d; best = i; }
+                            }
+                            pid = best;
+                        }
+                    }
+                }
+
+                if (pid >= 0 && pid < numPts) {
+                    togglePointSelection(pid);
+                }
+            });
+
+            // Delete selected points with Delete key
+            document.addEventListener('keydown', onDeleteKey);
+            // Hook delete button if present
+            const delBtn = document.getElementById('deleteSelectedPC');
+            if (delBtn && !delBtn._bound) {
+                delBtn.addEventListener('click', deleteSelectedPoints);
+                delBtn._bound = true;
             }
-            container.style.display = 'block';
+            const clearBtn = document.getElementById('clearSelectionPC');
+            if (clearBtn && !clearBtn._bound) {
+                clearBtn.addEventListener('click', clearSelection);
+                clearBtn._bound = true;
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load point cloud:', err);
             container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load 3D model</div>';
         });
+}
+
+// Highlight toggle
+function togglePointSelection(pid) {
+    const colors = pcState.scalars.getData(); // Uint8Array
+    if (pcState.selected.has(pid)) {
+        pcState.selected.delete(pid);
+        // restore original color
+        colors[pid*3+0] = pcState.baseColors[pid*3+0];
+        colors[pid*3+1] = pcState.baseColors[pid*3+1];
+        colors[pid*3+2] = pcState.baseColors[pid*3+2];
+    } else {
+        pcState.selected.add(pid);
+        // set to red highlight
+        colors[pid*3+0] = 255;
+        colors[pid*3+1] = 0;
+        colors[pid*3+2] = 0;
+    }
+    pcState.scalars.modified();
+    pcState.renderWindow.render();
+}
+
+function clearSelection() {
+    if (!pcState.scalars) return;
+    const colors = pcState.scalars.getData();
+    colors.set(pcState.baseColors);
+    pcState.selected.clear();
+    pcState.scalars.modified();
+    pcState.renderWindow.render();
+}
+
+function onDeleteKey(e) {
+    if (e.key === 'Delete') {
+        deleteSelectedPoints();
+    }
+}
+
+function deleteSelectedPoints() {
+    if (!pcState.polyData || pcState.selected.size === 0) return;
+
+    const keep = [];
+    const pts = pcState.polyData.getPoints().getData();
+    const n = pcState.polyData.getPoints().getNumberOfPoints();
+
+    for (let i = 0; i < n; i++) {
+        if (!pcState.selected.has(i)) keep.push(i);
+    }
+    if (keep.length === n) return;
+
+    // Rebuild points
+    const newPts = new Float32Array(keep.length * 3);
+    for (let i = 0; i < keep.length; i++) {
+        const k = keep[i];
+        newPts[i*3+0] = pts[k*3+0];
+        newPts[i*3+1] = pts[k*3+1];
+        newPts[i*3+2] = pts[k*3+2];
+    }
+    const vtkPoints = vtk.Common.Core.vtkPoints;
+    const pObj = vtkPoints.newInstance();
+    pObj.setData(newPts, 3);
+    pcState.polyData.setPoints(pObj);
+
+    // Rebuild colors (use baseColors to preserve originals where possible)
+    const newColors = new Uint8Array(keep.length * 3);
+    for (let i = 0; i < keep.length; i++) {
+        const k = keep[i];
+        newColors[i*3+0] = pcState.baseColors[k*3+0];
+        newColors[i*3+1] = pcState.baseColors[k*3+1];
+        newColors[i*3+2] = pcState.baseColors[k*3+2];
+    }
+    const vtkDataArray = vtk.Common.Core.vtkDataArray;
+    const scalars = vtkDataArray.newInstance({
+        name: 'Colors',
+        numberOfComponents: 3,
+        values: newColors,
+    });
+    pcState.polyData.getPointData().setScalars(scalars);
+
+    // Update state
+    pcState.baseColors = newColors.slice();
+    pcState.scalars = scalars;
+    pcState.selected.clear();
+
+    // Notify and render
+    pcState.polyData.modified();
+    pcState.renderer.resetCamera();
+    pcState.renderWindow.render();
 }
