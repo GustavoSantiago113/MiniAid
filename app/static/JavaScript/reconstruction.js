@@ -233,20 +233,69 @@ function loadPointCloud() {
 
             const interactor = renderWindow.getInteractor();
 
-            // Toggle selection with left click
+            // --- Right-click drag selection ---
+            let isRightMouseDown = false;
+
+            interactor.onRightButtonPress(() => {
+                isRightMouseDown = true;
+            });
+
+            interactor.onRightButtonRelease(() => {
+                isRightMouseDown = false;
+            });
+
+            interactor.onMouseMove((callData) => {
+                if (!isRightMouseDown) return;
+                const pos = callData?.position;
+                if (!pos) return;
+                picker.pick([pos.x, pos.y, 0], renderer);
+                let pid = typeof picker.getPointId === 'function' ? picker.getPointId() : -1;
+
+                let worldPos = null;
+                if (pid < 0 && typeof picker.getCellId === 'function') {
+                    const cellId = picker.getCellId();
+                    if (cellId >= 0 && polyData.getPoints()) {
+                        worldPos = picker.getPickPosition?.() || null;
+                    }
+                } else if (pid >= 0 && polyData.getPoints()) {
+                    // Get world position of picked point
+                    const pts = polyData.getPoints().getData();
+                    worldPos = [pts[pid*3+0], pts[pid*3+1], pts[pid*3+2]];
+                }
+
+                if (worldPos) {
+                    // Select all points within a radius
+                    const pts = polyData.getPoints().getData();
+                    const radiusSlider = document.getElementById('selectionRadiusSlider');
+                    const radius = parseFloat(radiusSlider?.value || "0.05");
+                    for (let i = 0; i < numPts; i++) {
+                        const dx = pts[i * 3 + 0] - worldPos[0];
+                        const dy = pts[i * 3 + 1] - worldPos[1];
+                        const dz = pts[i * 3 + 2] - worldPos[2];
+                        const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                        if (d < radius && !pcState.selected.has(i)) {
+                            pcState.selected.add(i);
+                            const colors = pcState.scalars.getData();
+                            colors[i*3+0] = 255;
+                            colors[i*3+1] = 0;
+                            colors[i*3+2] = 0;
+                        }
+                    }
+                    pcState.scalars.modified();
+                    pcState.renderWindow.render();
+                }
+            });
+
+            // --- Left click toggles selection ---
             interactor.onLeftButtonPress((callData) => {
                 const pos = callData?.position;
                 if (!pos) return;
-                // pick expects [x, y, z] display coords
                 picker.pick([pos.x, pos.y, 0], renderer);
-                // Prefer pointId if available; else try to derive from cell/mapper
                 let pid = typeof picker.getPointId === 'function' ? picker.getPointId() : -1;
 
                 if (pid < 0 && typeof picker.getCellId === 'function') {
-                    // Fallback: try to map picked cell's closest point (approx)
                     const cellId = picker.getCellId();
                     if (cellId >= 0 && polyData.getPoints()) {
-                        // Very naive: use picked world pos to find nearest point (O(N))
                         const worldPos = picker.getPickPosition?.() || null;
                         if (worldPos) {
                             const pts = polyData.getPoints().getData();
@@ -287,6 +336,17 @@ function loadPointCloud() {
             container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load 3D model</div>';
         });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const radiusSlider = document.getElementById('selectionRadiusSlider');
+    const radiusValue = document.getElementById('selectionRadiusValue');
+    if (radiusSlider && radiusValue) {
+        radiusSlider.addEventListener('input', () => {
+            radiusValue.textContent = radiusSlider.value;
+        });
+        radiusValue.textContent = radiusSlider.value;
+    }
+});
 
 // Highlight toggle
 function togglePointSelection(pid) {
