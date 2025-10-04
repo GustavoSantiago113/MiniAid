@@ -337,6 +337,70 @@ function loadPointCloud() {
         });
 }
 
+function savePointCloud() {
+    if (!pcState.polyData) return;
+
+    const pts = pcState.polyData.getPoints().getData();
+    const numPts = pcState.polyData.getPoints().getNumberOfPoints();
+    const scalars = pcState.polyData.getPointData().getScalars();
+    const colors = scalars ? scalars.getData() : null;
+
+    // Build ASCII PLY header
+    const header = [
+        'ply',
+        'format ascii 1.0',
+        `element vertex ${numPts}`,
+        'property float x',
+        'property float y',
+        'property float z',
+        'property uchar red',
+        'property uchar green',
+        'property uchar blue',
+        'end_header'
+    ].join('\n') + '\n';
+
+    // Build body
+    const lines = new Array(numPts);
+    for (let i = 0; i < numPts; i++) {
+        const x = pts[i * 3 + 0];
+        const y = pts[i * 3 + 1];
+        const z = pts[i * 3 + 2];
+        let r = 255, g = 255, b = 255;
+        if (colors && colors.length >= (i*3 + 2)) {
+            r = colors[i * 3 + 0];
+            g = colors[i * 3 + 1];
+            b = colors[i * 3 + 2];
+        }
+        lines[i] = `${x} ${y} ${z} ${r} ${g} ${b}`;
+    }
+
+    const plyString = header + lines.join('\n') + '\n';
+    const blob = new Blob([plyString], { type: 'application/octet-stream' });
+
+    // Send the Blob to the server
+    fetch('/save-updated-point-cloud', {
+        method: 'POST',
+        headers: { /* no Content-Type so browser sets correct multipart type */ },
+        body: blob,
+    })
+        .then((response) => {
+            if (!response.ok) throw new Error('Failed to save updated point cloud');
+            return response.json();
+        })
+        .then((data) => {
+            if (data.success) {
+                console.log('Point cloud saved successfully');
+                // Reload the updated point cloud
+                loadPointCloud();
+            } else {
+                console.error('Error saving point cloud:', data.message);
+            }
+        })
+        .catch((error) => {
+            console.error('Error saving point cloud:', error);
+        });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const radiusSlider = document.getElementById('selectionRadiusSlider');
     const radiusValue = document.getElementById('selectionRadiusValue');
@@ -399,9 +463,9 @@ function deleteSelectedPoints() {
     const newPts = new Float32Array(keep.length * 3);
     for (let i = 0; i < keep.length; i++) {
         const k = keep[i];
-        newPts[i*3+0] = pts[k*3+0];
-        newPts[i*3+1] = pts[k*3+1];
-        newPts[i*3+2] = pts[k*3+2];
+        newPts[i * 3 + 0] = pts[k * 3 + 0];
+        newPts[i * 3 + 1] = pts[k * 3 + 1];
+        newPts[i * 3 + 2] = pts[k * 3 + 2];
     }
     const vtkPoints = vtk.Common.Core.vtkPoints;
     const pObj = vtkPoints.newInstance();
@@ -412,9 +476,9 @@ function deleteSelectedPoints() {
     const newColors = new Uint8Array(keep.length * 3);
     for (let i = 0; i < keep.length; i++) {
         const k = keep[i];
-        newColors[i*3+0] = pcState.baseColors[k*3+0];
-        newColors[i*3+1] = pcState.baseColors[k*3+1];
-        newColors[i*3+2] = pcState.baseColors[k*3+2];
+        newColors[i * 3 + 0] = pcState.baseColors[k * 3 + 0];
+        newColors[i * 3 + 1] = pcState.baseColors[k * 3 + 1];
+        newColors[i * 3 + 2] = pcState.baseColors[k * 3 + 2];
     }
     const vtkDataArray = vtk.Common.Core.vtkDataArray;
     const scalars = vtkDataArray.newInstance({
@@ -433,4 +497,7 @@ function deleteSelectedPoints() {
     pcState.polyData.modified();
     pcState.renderer.resetCamera();
     pcState.renderWindow.render();
+
+    // Save the updated point cloud
+    savePointCloud();
 }

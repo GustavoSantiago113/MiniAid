@@ -357,6 +357,18 @@ def update_visualization_endpoint():
         print(f"Error in update_visualization: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route("/save-updated-point-cloud", methods=["POST"])
+def save_updated_point_cloud():
+    try:
+        # Save the updated point cloud to the same file
+        ply_file_path = os.path.join(app.config['UPLOAD_FOLDER'], "Reconstruction.ply")
+        with open(ply_file_path, "wb") as f:
+            f.write(request.data)
+
+        return jsonify({"success": True, "message": "Point cloud saved successfully."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 @app.route("/download-point-cloud", methods=["GET"])
 def download_point_cloud():
     try:
