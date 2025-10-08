@@ -1,6 +1,2 @@
-frames/
-app/static/models/
-backgroundFunctions/
 skyseg.onnx
-Miniatures
-runs
+target_dir/
