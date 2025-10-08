@@ -1,6 +1,6 @@
 [submodule "vggt"]
 	path = vggt
 	url = https://github.com/facebookresearch/vggt.git
-[submodule "dust3r"]
-	path = app/dust3r
-	url = https://github.com/naver/dust3r.git
+[submodule "vggt"]
+	path = app/vggt
+	url = https://github.com/facebookresearch/vggt.git

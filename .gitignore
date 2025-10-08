@@ -3,3 +3,4 @@ app/static/models/
 runs/
 Miniatures/
 skyseg.onnx
+target_dir/
