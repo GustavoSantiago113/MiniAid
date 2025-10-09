@@ -216,7 +216,11 @@
                                     </div>
                                     <div class = "action-button" id="downloadPC">
                                         <img src="../static/icons/download.png" class="button-icon">
-                                        Download
+                                        Download Point Cloud
+                                    </div>
+                                    <div class="action-button" id="downloadMeshPC">
+                                        <img src="../static/icons/download.png" class="button-icon">
+                                        Download Mesh
                                     </div>
                                 </div>
                             </div>
@@ -303,6 +307,10 @@
 
         document.getElementById("downloadPC").addEventListener("click", function() {
             downloadPointCloud();
+        });
+
+        document.getElementById('downloadMeshPC').addEventListener('click', function() {
+            downloadMeshPointCloud();
         });
 
     </script>

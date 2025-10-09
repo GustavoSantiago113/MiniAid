@@ -501,3 +501,39 @@ function deleteSelectedPoints() {
     // Save the updated point cloud
     savePointCloud();
 }
+
+async function downloadMeshPointCloud() {
+    const button = document.getElementById("downloadMeshPC");
+    if (!button) return;
+
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
+
+    try {
+        const response = await fetch('/download-mesh-point-cloud', {
+            method: 'GET',
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = "ReconstructionMesh.ply";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            const errorData = await response.json();
+            alert(`Failed to download mesh: ${errorData.message || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error("Error downloading mesh:", error);
+        alert("An error occurred while downloading the mesh.");
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}

@@ -13,6 +13,7 @@ import sys
 import glob
 import gc
 import time
+import open3d as o3d
 
 sys.path.append("./vggt")
 
@@ -352,3 +353,51 @@ def update_visualization(
     glbscene.export(file_obj=glbfile)
 
     return glbfile
+
+def poisson_reconstruction_from_point_cloud(
+    input_file, output_mesh_file, depth=5, width=0, scale=1.1, linear_fit=False
+):
+    """
+    Perform Poisson surface reconstruction from a point cloud.
+    This estimates normals first if they don't exist.
+
+    Parameters:
+    -----------
+    input_file : str
+        Path to input point cloud file (can be .ply, .pcd, .xyz, etc.)
+    output_mesh_file : str
+        Path to save the output mesh file (typically .ply or .obj)
+    depth : int
+        Maximum depth of the octree used for reconstruction (higher=more detail but slower)
+    width : int
+        Specifies the target width of the finest level of the octree (0=automatic)
+    scale : float
+        Ratio between the diameter of the cube used for reconstruction and the diameter of the input point cloud
+    linear_fit : bool
+        If true, use linear interpolation to fit the implicit function
+    """
+    # Load the point cloud
+    print(f"Loading point cloud from {input_file}...")
+    pcd = o3d.io.read_point_cloud(input_file)
+
+    # Check if normals exist, estimate them if they don't
+    if not pcd.has_normals():
+        print("Point cloud doesn't have normals, estimating them...")
+        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=30))
+        pcd.orient_normals_consistent_tangent_plane(k=30)
+
+    print("Running Poisson surface reconstruction...")
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcd, depth=depth, width=width, scale=scale, linear_fit=linear_fit
+        )
+
+    # You can adjust this threshold (0.1) to filter out more/less vertices
+    vertices_to_remove = densities < np.quantile(densities, 0.1)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
+
+    # Save the mesh
+    # print(f"Saving reconstructed mesh to {output_mesh_file}...")
+    o3d.io.write_triangle_mesh(output_mesh_file, mesh)
+
+    return mesh
