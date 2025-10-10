@@ -9,21 +9,18 @@ from PIL import Image as PILImage
 import cv2
 import os
 import torch
-import sys
 import glob
 import gc
 import time
 import open3d as o3d
 
-sys.path.append("./vggt")
+from .visual_util import predictions_to_glb
+from .vggt.models.vggt import VGGT
+from .vggt.utils.load_fn import load_and_preprocess_images
+from .vggt.utils.pose_enc import pose_encoding_to_extri_intri
+from .vggt.utils.geometry import unproject_depth_map_to_point_map
 
-from visual_util import predictions_to_glb
-from vggt.models.vggt import VGGT
-from vggt.utils.load_fn import load_and_preprocess_images
-from vggt.utils.pose_enc import pose_encoding_to_extri_intri
-from vggt.utils.geometry import unproject_depth_map_to_point_map
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 model = VGGT()
 _URL = "https://huggingface.co/facebook/VGGT-1B/resolve/main/model.pt"
