@@ -17,6 +17,8 @@ A standalone tool to aid in the process of painting and publicize miniatures
 # Purpose
 MiniAid is a Python-based tool designed to assist users in both pre-painting and post-painting processes for miniature models. It provides functionalities such as image cropping, sketch generation, segmentation, point cloud reconstruction, and mesh generation. The tool aims to streamline workflows for artists and hobbyists working with miniature painting and 3D modeling.
 
+![Main Page](README_images/mainPage.png)
+
 # Frameworks Used
 MiniAid leverages the following frameworks and libraries:
 
@@ -101,7 +103,7 @@ python app.py
 5. Use as a Standalone application:
 
 ```
-pyinstaller --windowed --add-data "templates;templates" --add-data "static;static" --add-data "utils;utils" app.py
+pyinstaller --windowed --add-data "templates;templates" --add-data "static;static" --add-data "utils;utils" --collect-data=gradio_client --collect-data=gradio app.py
 ```
 
 # How to Use
@@ -113,11 +115,28 @@ pyinstaller --windowed --add-data "templates;templates" --add-data "static;stati
 4. Write the part and select the respective color.
 5. Generate a PDF with color palettes based on the cropped image.
 
+![Sketch](README_images/sketch.png)
+
 ## Post-Painting
 1. Navigate to the Post-Painting page.
-2. Upload multiple images of your miniature model **Pro tip: 3 - 8 images are enough**.
+
+![Post Painting](README_images/postPaint.png)
+
+2. Upload multiple images of your miniature model.
 3. Perform segmentation to isolate specific areas of the images.
-4. Download the segmented image to share in your social media.
-5. Generate a point cloud from the uploaded images.
-6. (Optional) Increase the confidence from the model to refine it.
-7. Download the point cloud for further use.
+
+![Segmentation](README_images/segmentation.png)
+
+4. Change the Black Point of the images to make it look darker and cooler.
+
+![Black Point](README_images/blackPoint.png)
+
+5. Download the segmented image to share in your social media.
+6. Generate a point cloud from the uploaded images.
+
+![Reconstruction](README_images/reconstruction.png)
+
+7. (Optional) Increase the confidence from the model to refine it, or use your mouse as brush to remove undesired points.
+8. Download the point cloud for further use.
+9. Or you can download the Mesh to show it later.
+
