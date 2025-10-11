@@ -100,11 +100,7 @@ cd app
 python app.py
 ```
 
-5. Use as a Standalone application:
-
-```
-pyinstaller --windowed --add-data "templates;templates" --add-data "static;static" --add-data "utils;utils" --collect-data=gradio_client --collect-data=gradio app.py
-```
+5. Or run using the "start_miniAid.bat" file. Just remember to change the path from it to your actual path.
 
 # How to Use
 
