@@ -19,6 +19,12 @@ let lastPanY = 0;
 const MAX_ZOOM = 10;
 const MIN_ZOOM = 0.5;
 
+// Crop mode variables
+let cropMode = false;
+let cropStartX = 0;
+let cropStartY = 0;
+let cropRect = null;
+
 async function openSegmentationModal() {
     const modal = document.getElementById("segmentationModal");
     const imageContainer = document.getElementById("imageContainer");
@@ -36,6 +42,8 @@ async function openSegmentationModal() {
     panOffsetX = 0;
     panOffsetY = 0;
     isPanning = false;
+    cropMode = false;
+    cropRect = null;
 
     // 1. Show modal and loader
     modal.style.display = "flex";
@@ -128,7 +136,20 @@ async function openSegmentationModal() {
         document.getElementById("segmentationModal").style.display = "none";
         loadedModalImage = null;
         polygonPoints = [];
+        cropRect = null;
+        cropMode = false;
     });
+
+    // Crop mode toggle handler
+    const cropCheckbox = document.getElementById("segmentationEnableCrop");
+    if (cropCheckbox) {
+        cropCheckbox.addEventListener("change", function() {
+            cropMode = this.checked;
+            cropRect = null;
+            const ctx = canvas.getContext("2d");
+            redrawCanvas(canvas, ctx);
+        });
+    }
 }
 
 function initializeCanvasDrawing(canvas, ctx) {
@@ -161,6 +182,14 @@ function initializeCanvasDrawing(canvas, ctx) {
             lastPanX = e.clientX;
             lastPanY = e.clientY;
             canvas.style.cursor = 'grabbing';
+            return;
+        }
+
+        if (cropMode) {
+            isDrawing = true;
+            cropStartX = canvasX;
+            cropStartY = canvasY;
+            cropRect = { x: canvasX, y: canvasY, width: 0, height: 0 };
             return;
         }
 
@@ -242,6 +271,13 @@ function initializeCanvasDrawing(canvas, ctx) {
             return;
         }
 
+        if (cropMode && isDrawing) {
+            cropRect.width = canvasX - cropStartX;
+            cropRect.height = canvasY - cropStartY;
+            redrawCanvas(canvas, ctx);
+            return;
+        }
+
         if (interactionMode === "polygon" && isDragging && draggingPointIndex !== -1) {
             polygonPoints[draggingPointIndex] = [canvasX, canvasY];
             redrawCanvas(canvas, ctx);
@@ -268,6 +304,18 @@ function initializeCanvasDrawing(canvas, ctx) {
         if (isDragging) {
             isDragging = false;
             canvas.style.cursor = 'default';
+        }
+        if (cropMode && isDrawing) {
+            isDrawing = false;
+            // Normalize crop rectangle
+            if (cropRect.width < 0) {
+                cropRect.x += cropRect.width;
+                cropRect.width = -cropRect.width;
+            }
+            if (cropRect.height < 0) {
+                cropRect.y += cropRect.height;
+                cropRect.height = -cropRect.height;
+            }
         }
         isDrawing = false;
         draggingPointIndex = -1;
@@ -340,6 +388,22 @@ function redrawCanvas(canvas, ctx) {
     
     if (interactionMode === "polygon" && polygonPoints.length > 0) {
         drawPolygonAndPoints(ctx);
+    }
+
+    // Draw crop rectangle if in crop mode
+    if (cropMode && cropRect && (cropRect.width !== 0 || cropRect.height !== 0)) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2 / zoomLevel;
+        ctx.setLineDash([5 / zoomLevel, 5 / zoomLevel]);
+        ctx.strokeRect(cropRect.x, cropRect.y, cropRect.width, cropRect.height);
+        ctx.setLineDash([]);
+        
+        // Semi-transparent overlay outside crop area
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, cropRect.y);
+        ctx.fillRect(0, cropRect.y, cropRect.x, cropRect.height);
+        ctx.fillRect(cropRect.x + cropRect.width, cropRect.y, canvas.width - (cropRect.x + cropRect.width), cropRect.height);
+        ctx.fillRect(0, cropRect.y + cropRect.height, canvas.width, canvas.height - (cropRect.y + cropRect.height));
     }
 
     ctx.restore();
@@ -482,47 +546,97 @@ function getUpdatedPolygonOriginalScale() {
 }
 
 async function downloadSegmentedImage() {
-    const coordinates = getUpdatedPolygonOriginalScale();
+    const button = document.getElementById("downloadSegmented");
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span>';
+    button.disabled = true;
 
-    if (coordinates && coordinates.length > 0) {
-        const button = document.getElementById("downloadSegmented");
+    try {
+        // Get filename
+        const filename = document.getElementById("segmentationFilename").value.trim() || "segmented_image";
+        
+        // Get target size
+        const widthInput = document.getElementById("segmentationWidth").value;
+        const heightInput = document.getElementById("segmentationHeight").value;
+        const targetSize = (widthInput && heightInput) ? {
+            width: parseInt(widthInput),
+            height: parseInt(heightInput)
+        } : null;
 
-        const originalText = button.innerHTML;
-        button.innerHTML = '<span class="loader"></span>';
-        button.disabled = true;
-
-        try {
-            const response = await fetch('/download-segmented', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    image_path: loadedModalImage.src,
-                    polygon: coordinates
-                }),
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.style.display = "none";
-                a.href = url;
-                a.download = "segmented.png";
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } else {
-                const errorData = await response.json();
-                alert(`Failed to download segmented image: ${errorData.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            alert("An error occurred while downloading the image.");
-        } finally {
-            button.disabled = false;
-            button.innerHTML = originalText;
+        // Get crop coordinates if crop mode is enabled
+        const canvas = document.getElementById("imageCanvas");
+        let cropCoords = null;
+        
+        if (cropMode && cropRect && cropRect.width > 0 && cropRect.height > 0) {
+            // Convert crop coordinates back to original image scale
+            const scaleX = originalWidthImg / canvas.width;
+            const scaleY = originalHeightImg / canvas.height;
+            
+            cropCoords = {
+                x: Math.round(cropRect.x * scaleX),
+                y: Math.round(cropRect.y * scaleY),
+                width: Math.round(cropRect.width * scaleX),
+                height: Math.round(cropRect.height * scaleY)
+            };
         }
-    } else {
-        alert("No polygon coordinates available for cropping.");
+
+        // Get the current canvas image as base64
+        const canvasForExport = document.createElement('canvas');
+        const ctxForExport = canvasForExport.getContext('2d');
+        canvasForExport.width = originalWidthImg;
+        canvasForExport.height = originalHeightImg;
+        
+        // Draw original image
+        ctxForExport.drawImage(loadedModalImage, 0, 0, originalWidthImg, originalHeightImg);
+        
+        // Draw polygon mask if exists
+        if (polygonPoints && polygonPoints.length > 0) {
+            const originalPolygon = getUpdatedPolygonOriginalScale();
+            ctxForExport.globalCompositeOperation = 'destination-in';
+            ctxForExport.beginPath();
+            ctxForExport.moveTo(originalPolygon[0][0], originalPolygon[0][1]);
+            for (let i = 1; i < originalPolygon.length; i++) {
+                ctxForExport.lineTo(originalPolygon[i][0], originalPolygon[i][1]);
+            }
+            ctxForExport.closePath();
+            ctxForExport.fill();
+        }
+
+        const imageData = canvasForExport.toDataURL('image/png');
+
+        // Send to backend
+        const response = await fetch('/save-processed-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                imageData: imageData,
+                filename: filename,
+                cropCoords: cropCoords,
+                targetSize: targetSize
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to save image');
+        }
+
+        // Download the file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename.endsWith('.png') ? filename : filename + '.png';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+    } catch (error) {
+        console.error('Error saving segmented image:', error);
+        alert('An error occurred while saving the image.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
     }
 }

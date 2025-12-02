@@ -1,3 +1,10 @@
+// Crop mode variables for black point
+let blackPointCropMode = false;
+let blackPointCropRect = null;
+let blackPointCropStartX = 0;
+let blackPointCropStartY = 0;
+let blackPointIsDrawing = false;
+
 async function openBlackPointModal(imageSrc) {
     const modal = document.getElementById("blackPointModal");
     const blackPointImage = document.getElementById("blackPointImage");
@@ -6,6 +13,10 @@ async function openBlackPointModal(imageSrc) {
 
     blackPointImage.src = imageSrc;
     loadedModalImage = imageSrc;
+
+    // Reset crop state
+    blackPointCropMode = false;
+    blackPointCropRect = null;
 
     // Display the modal
     modal.style.display = "flex";
@@ -21,11 +32,132 @@ async function openBlackPointModal(imageSrc) {
         blackPointImage.src = adjustedImage;
     });
 
+    // Setup crop mode toggle
+    const cropCheckbox = document.getElementById("blackPointEnableCrop");
+    if (cropCheckbox) {
+        cropCheckbox.addEventListener("change", function() {
+            blackPointCropMode = this.checked;
+            blackPointCropRect = null;
+            setupBlackPointImageCrop();
+        });
+    }
+
     document.querySelectorAll('.modal .close').forEach(closeBtn => {
         closeBtn.addEventListener('click', async function() {
             this.closest('.modal').style.display = 'none';
+            blackPointCropMode = false;
+            blackPointCropRect = null;
         });
     });
+}
+
+function setupBlackPointImageCrop() {
+    const imageContainer = document.querySelector("#blackPointModal .image-container");
+    const img = document.getElementById("blackPointImage");
+    
+    if (!blackPointCropMode) {
+        // Remove crop overlay if exists
+        const existingOverlay = document.getElementById("blackPointCropOverlay");
+        if (existingOverlay) existingOverlay.remove();
+        return;
+    }
+
+    // Create canvas overlay for crop rectangle
+    let canvas = document.getElementById("blackPointCropOverlay");
+    if (!canvas) {
+        canvas = document.createElement("canvas");
+        canvas.id = "blackPointCropOverlay";
+        canvas.style.position = "absolute";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.cursor = "crosshair";
+        canvas.style.pointerEvents = "auto";
+        imageContainer.style.position = "relative";
+        imageContainer.appendChild(canvas);
+    }
+
+    // Match canvas size to image
+    canvas.width = img.clientWidth;
+    canvas.height = img.clientHeight;
+    canvas.style.width = img.clientWidth + "px";
+    canvas.style.height = img.clientHeight + "px";
+
+    const ctx = canvas.getContext("2d");
+
+    canvas.addEventListener("mousedown", (e) => {
+        if (!blackPointCropMode) return;
+        const rect = canvas.getBoundingClientRect();
+        blackPointCropStartX = e.clientX - rect.left;
+        blackPointCropStartY = e.clientY - rect.top;
+        blackPointIsDrawing = true;
+        blackPointCropRect = {
+            x: blackPointCropStartX,
+            y: blackPointCropStartY,
+            width: 0,
+            height: 0
+        };
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (!blackPointIsDrawing || !blackPointCropMode) return;
+        const rect = canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        blackPointCropRect.width = currentX - blackPointCropStartX;
+        blackPointCropRect.height = currentY - blackPointCropStartY;
+        
+        drawBlackPointCropRect(ctx, canvas);
+    });
+
+    canvas.addEventListener("mouseup", () => {
+        if (blackPointIsDrawing && blackPointCropRect) {
+            blackPointIsDrawing = false;
+            // Normalize rectangle
+            if (blackPointCropRect.width < 0) {
+                blackPointCropRect.x += blackPointCropRect.width;
+                blackPointCropRect.width = -blackPointCropRect.width;
+            }
+            if (blackPointCropRect.height < 0) {
+                blackPointCropRect.y += blackPointCropRect.height;
+                blackPointCropRect.height = -blackPointCropRect.height;
+            }
+        }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+        blackPointIsDrawing = false;
+    });
+}
+
+function drawBlackPointCropRect(ctx, canvas) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (blackPointCropRect && (blackPointCropRect.width !== 0 || blackPointCropRect.height !== 0)) {
+        // Draw semi-transparent overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Clear the crop area
+        ctx.clearRect(
+            blackPointCropRect.x,
+            blackPointCropRect.y,
+            blackPointCropRect.width,
+            blackPointCropRect.height
+        );
+        
+        // Draw crop border
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(
+            blackPointCropRect.x,
+            blackPointCropRect.y,
+            blackPointCropRect.width,
+            blackPointCropRect.height
+        );
+        ctx.setLineDash([]);
+    }
 }
 
 async function adjustBlackPoint(imageSrc, blackPoint, download = false) {
@@ -44,7 +176,6 @@ async function adjustBlackPoint(imageSrc, blackPoint, download = false) {
 async function downloadBlackPointImage() {
     const slider = document.getElementById("blackPointSlider");
     const blackPoint = slider.value;
-
     const button = document.getElementById("downloadBlackPoint");
     const originalText = button.innerHTML;
 
@@ -55,6 +186,18 @@ async function downloadBlackPointImage() {
     button.disabled = true;
 
     try {
+        // Get filename
+        const filename = document.getElementById("blackPointFilename").value.trim() || "adjusted_black_point";
+        
+        // Get target size
+        const widthInput = document.getElementById("blackPointWidth").value;
+        const heightInput = document.getElementById("blackPointHeight").value;
+        const targetSize = (widthInput && heightInput) ? {
+            width: parseInt(widthInput),
+            height: parseInt(heightInput)
+        } : null;
+
+        // First, get the adjusted image
         const response = await fetch("/adjust-black-point", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -62,19 +205,55 @@ async function downloadBlackPointImage() {
         });
 
         if (!response.ok) {
-            throw new Error("Failed to download black point image");
+            throw new Error("Failed to adjust black point");
         }
 
         const data = await response.json();
-        const base64Image = data.adjustedImage;
+        const adjustedImageData = data.adjustedImage;
 
+        // Get crop coordinates if crop mode is enabled
+        let cropCoords = null;
+        if (blackPointCropMode && blackPointCropRect && blackPointCropRect.width > 0 && blackPointCropRect.height > 0) {
+            const img = document.getElementById("blackPointImage");
+            const scaleX = img.naturalWidth / img.clientWidth;
+            const scaleY = img.naturalHeight / img.clientHeight;
+            
+            cropCoords = {
+                x: Math.round(blackPointCropRect.x * scaleX),
+                y: Math.round(blackPointCropRect.y * scaleY),
+                width: Math.round(blackPointCropRect.width * scaleX),
+                height: Math.round(blackPointCropRect.height * scaleY)
+            };
+        }
+
+        // Send to save endpoint
+        const saveResponse = await fetch('/save-processed-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                imageData: adjustedImageData,
+                filename: filename,
+                cropCoords: cropCoords,
+                targetSize: targetSize
+            })
+        });
+
+        if (!saveResponse.ok) {
+            throw new Error('Failed to save image');
+        }
+
+        // Download the file
+        const blob = await saveResponse.blob();
+        const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.style.display = "none";
-        a.href = base64Image;
-        a.download = "adjusted_black_point.png";
+        a.href = url;
+        a.download = filename.endsWith('.png') ? filename : filename + '.png';
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(base64Image);
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
     } catch (error) {
         console.error("Error downloading black point image:", error);
         alert("An error occurred while downloading the image.");

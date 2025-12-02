@@ -406,6 +406,76 @@ def download_mesh_point_cloud():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route("/save-processed-image", methods=["POST"])
+def save_processed_image():
+    try:
+        data = request.get_json()
+        image_data = data.get('imageData')  # base64 image
+        filename = data.get('filename', 'processed_image')
+        crop_coords = data.get('cropCoords')  # {x, y, width, height}
+        target_size = data.get('targetSize')  # {width, height}
+        
+        if not image_data:
+            return jsonify({'success': False, 'error': 'No image data provided'}), 400
+        
+        # Decode base64 image
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        img = Image.open(BytesIO(image_bytes))
+
+        # Apply crop if provided
+        if crop_coords:
+            x = int(crop_coords.get('x', 0))
+            y = int(crop_coords.get('y', 0))
+            width = int(crop_coords.get('width', img.width))
+            height = int(crop_coords.get('height', img.height))
+            img = img.crop((x, y, x + width, y + height))
+
+        # Resize if target size is provided — preserve aspect ratio
+        if target_size:
+            img_w, img_h = img.size
+            has_w = 'width' in target_size and target_size.get('width') not in (None, '')
+            has_h = 'height' in target_size and target_size.get('height') not in (None, '')
+
+            if has_w and not has_h:
+                target_width = int(target_size.get('width'))
+                target_height = max(1, int(round(target_width * img_h / img_w)))
+            elif has_h and not has_w:
+                target_height = int(target_size.get('height'))
+                target_width = max(1, int(round(target_height * img_w / img_h)))
+            elif has_w and has_h:
+                tw = int(target_size.get('width'))
+                th = int(target_size.get('height'))
+                scale = min(tw / img_w, th / img_h)
+                target_width = max(1, int(round(img_w * scale)))
+                target_height = max(1, int(round(img_h * scale)))
+            else:
+                target_width, target_height = img_w, img_h
+
+            img = img.resize((target_width, target_height), Image.LANCZOS)
+        
+        # Save to BytesIO
+        output = BytesIO()
+        img.save(output, format='PNG')
+        output.seek(0)
+        
+        # Ensure filename has .png extension
+        if not filename.lower().endswith('.png'):
+            filename += '.png'
+        
+        return send_file(
+            output,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Error saving processed image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route("/about")
 def about_page():
     return render_template('About.html')
