@@ -4,6 +4,8 @@ let blackPointCropRect = null;
 let blackPointCropStartX = 0;
 let blackPointCropStartY = 0;
 let blackPointIsDrawing = false;
+// Display info for the rendered image inside the container
+let blackPointDisplayInfo = null;
 
 async function openBlackPointModal(imageSrc) {
     const modal = document.getElementById("blackPointModal");
@@ -76,37 +78,70 @@ function setupBlackPointImageCrop() {
         imageContainer.appendChild(canvas);
     }
 
-    // Match canvas size to image
-    canvas.width = img.clientWidth;
-    canvas.height = img.clientHeight;
-    canvas.style.width = img.clientWidth + "px";
-    canvas.style.height = img.clientHeight + "px";
+    // Match canvas size to image element (container-sized box)
+    // canvas covers the full element box; we'll compute the actual displayed image area
+    function recomputeDisplay() {
+        canvas.width = img.clientWidth;
+        canvas.height = img.clientHeight;
+        canvas.style.width = img.clientWidth + "px";
+        canvas.style.height = img.clientHeight + "px";
+
+        // Compute displayed image size (accounting for object-fit: contain)
+        const elementW = img.clientWidth;
+        const elementH = img.clientHeight;
+        const naturalW = img.naturalWidth || elementW;
+        const naturalH = img.naturalHeight || elementH;
+        const scale = Math.min(elementW / naturalW, elementH / naturalH);
+        const displayW = naturalW * scale;
+        const displayH = naturalH * scale;
+        const offsetX = (elementW - displayW) / 2;
+        const offsetY = (elementH - displayH) / 2;
+        blackPointDisplayInfo = { offsetX, offsetY, displayW, displayH, scale };
+    }
+
+    // Recompute when image changes (it may be updated by slider adjustments)
+    img.addEventListener('load', () => {
+        recomputeDisplay();
+        // redraw overlay if needed
+        const ctxReload = canvas.getContext('2d');
+        drawBlackPointCropRect(ctxReload, canvas);
+    });
+
+    recomputeDisplay();
 
     const ctx = canvas.getContext("2d");
 
     canvas.addEventListener("mousedown", (e) => {
-        if (!blackPointCropMode) return;
+        if (!blackPointCropMode || !blackPointDisplayInfo) return;
         const rect = canvas.getBoundingClientRect();
-        blackPointCropStartX = e.clientX - rect.left;
-        blackPointCropStartY = e.clientY - rect.top;
+        // Mouse relative to element
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        // Relative to displayed image area
+        const localX = Math.max(0, Math.min(blackPointDisplayInfo.displayW, clickX - blackPointDisplayInfo.offsetX));
+        const localY = Math.max(0, Math.min(blackPointDisplayInfo.displayH, clickY - blackPointDisplayInfo.offsetY));
+        blackPointCropStartX = localX;
+        blackPointCropStartY = localY;
         blackPointIsDrawing = true;
         blackPointCropRect = {
-            x: blackPointCropStartX,
-            y: blackPointCropStartY,
+            x: localX,
+            y: localY,
             width: 0,
             height: 0
         };
     });
 
     canvas.addEventListener("mousemove", (e) => {
-        if (!blackPointIsDrawing || !blackPointCropMode) return;
+        if (!blackPointIsDrawing || !blackPointCropMode || !blackPointDisplayInfo) return;
         const rect = canvas.getBoundingClientRect();
-        const currentX = e.clientX - rect.left;
-        const currentY = e.clientY - rect.top;
-        
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        const currentX = Math.max(0, Math.min(blackPointDisplayInfo.displayW, rawX - blackPointDisplayInfo.offsetX));
+        const currentY = Math.max(0, Math.min(blackPointDisplayInfo.displayH, rawY - blackPointDisplayInfo.offsetY));
+
         blackPointCropRect.width = currentX - blackPointCropStartX;
         blackPointCropRect.height = currentY - blackPointCropStartY;
-        
+
         drawBlackPointCropRect(ctx, canvas);
     });
 
@@ -133,29 +168,24 @@ function setupBlackPointImageCrop() {
 function drawBlackPointCropRect(ctx, canvas) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (blackPointCropRect && (blackPointCropRect.width !== 0 || blackPointCropRect.height !== 0)) {
-        // Draw semi-transparent overlay
+    if (blackPointCropRect && (blackPointCropRect.width !== 0 || blackPointCropRect.height !== 0) && blackPointDisplayInfo) {
+        // Draw semi-transparent overlay over full element
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Clear the crop area
-        ctx.clearRect(
-            blackPointCropRect.x,
-            blackPointCropRect.y,
-            blackPointCropRect.width,
-            blackPointCropRect.height
-        );
-        
+
+        // Clear the crop area within the displayed image area
+        const drawX = blackPointDisplayInfo.offsetX + blackPointCropRect.x;
+        const drawY = blackPointDisplayInfo.offsetY + blackPointCropRect.y;
+        const drawW = blackPointCropRect.width;
+        const drawH = blackPointCropRect.height;
+
+        ctx.clearRect(drawX, drawY, drawW, drawH);
+
         // Draw crop border
         ctx.strokeStyle = 'red';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
-        ctx.strokeRect(
-            blackPointCropRect.x,
-            blackPointCropRect.y,
-            blackPointCropRect.width,
-            blackPointCropRect.height
-        );
+        ctx.strokeRect(drawX, drawY, drawW, drawH);
         ctx.setLineDash([]);
     }
 }
@@ -213,11 +243,12 @@ async function downloadBlackPointImage() {
 
         // Get crop coordinates if crop mode is enabled
         let cropCoords = null;
-        if (blackPointCropMode && blackPointCropRect && blackPointCropRect.width > 0 && blackPointCropRect.height > 0) {
+        if (blackPointCropMode && blackPointCropRect && blackPointCropRect.width > 0 && blackPointCropRect.height > 0 && blackPointDisplayInfo) {
             const img = document.getElementById("blackPointImage");
-            const scaleX = img.naturalWidth / img.clientWidth;
-            const scaleY = img.naturalHeight / img.clientHeight;
-            
+            // Map crop (which is relative to displayed image area) back to natural image pixels
+            const scaleX = img.naturalWidth / blackPointDisplayInfo.displayW;
+            const scaleY = img.naturalHeight / blackPointDisplayInfo.displayH;
+
             cropCoords = {
                 x: Math.round(blackPointCropRect.x * scaleX),
                 y: Math.round(blackPointCropRect.y * scaleY),
