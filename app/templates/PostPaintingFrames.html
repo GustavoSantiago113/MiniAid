@@ -93,11 +93,7 @@
                     </div>
                     
                     <div class = "controls-buttons">
-                        <div class="slider-container">
-                            <label for="segmentationConfidence">Segmentation Confidence:</label>
-                            <input type="range" id="segmentationConfidenceSlider" min="0" max="100" value="75" step="1" class="slider">
-                            <span id="segmentationConfidenceValue">75%</span>
-                        </div>
+                        <!-- segmentation confidence removed: using semantic UNet model -->
                         <div class="slider-container">
                             <label for="smooth">Counter smoothness:</label>
                             <select id="segSmooth" class="custom-select">
@@ -309,14 +305,7 @@
         slider.addEventListener('input', updateSlider);
         updateSlider();
 
-        const sliderSegmentation = document.getElementById('segmentationConfidenceSlider');
-        function updateSliderSegmentation() {
-            const value = sliderSegmentation.value;
-            const percent = (value / sliderSegmentation.max) * 100;
-            sliderSegmentation.style.setProperty('--slider-percent', percent + '%');
-        }
-        sliderSegmentation.addEventListener('input', updateSliderSegmentation);
-        updateSliderSegmentation();
+        // segmentation confidence slider removed (UNet semantic segmentation)
         
         const sliderSelectRadius = document.getElementById('selectionRadiusSlider');
         function updateSliderSelectRadius() {

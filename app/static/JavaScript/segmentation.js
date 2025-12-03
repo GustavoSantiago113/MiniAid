@@ -28,12 +28,7 @@ let cropRect = null;
 async function openSegmentationModal() {
     const modal = document.getElementById("segmentationModal");
     const imageContainer = document.getElementById("imageContainer");
-    const slider = document.getElementById("segmentationConfidenceSlider");
-    const sliderValue = document.getElementById("segmentationConfidenceValue");
-
-    slider.addEventListener("input", function () {
-        sliderValue.textContent = `${slider.value}%`;
-    });
+    // segmentation confidence removed (UNet semantic segmentation)
 
     // Reset state
     polygonPoints = [];
@@ -64,7 +59,7 @@ async function openSegmentationModal() {
         if (data.success && data.polygons && data.polygons.length > 0) {
             polygons = data.polygons;
         } else if (data.success && (!data.polygons || data.polygons.length === 0)){
-            imageContainer.innerHTML = '<p style="text-align: center; color: red;">No Miniatures detected, please reduce the confidence</p>';
+            imageContainer.innerHTML = '<p style="text-align: center; color: red;">No segmentation detected, try adjusting smoothness</p>';
             return;
         } else {
             throw new Error(data.message || "Segmentation failed.");
@@ -478,8 +473,6 @@ async function reSegment() {
     const selectedKey = selectElement.value;
     const smooth = qualityMap[selectedKey];
 
-    const slider = document.getElementById("segmentationConfidenceSlider");
-
     try {
         // Send the file to the server with new confidence
         const response = await fetch('/segment-image', {
@@ -490,7 +483,7 @@ async function reSegment() {
             body: JSON.stringify({
                 image_path: loadedModalImage.src,
                 smooth: smooth,
-                confidence: slider.value / 100 // Convert slider value to a percentage
+                // UNet model does not use detection confidence
             }),
         });
 

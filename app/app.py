@@ -3,14 +3,14 @@ from io import BytesIO
 import shutil
 from flask import Flask, request, render_template, jsonify, send_file
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 from utils import utils
 import cv2
 import io
 import atexit
-from ultralytics import YOLO
 import torch
+from utils.uNet import UNet
 import trimesh
 import open3d as o3d
 
@@ -23,8 +23,26 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_FRAMES'], exist_ok=True)
 os.makedirs(app.config['MODELS'], exist_ok=True)
 
-model = YOLO(os.path.join(app.config['MODELS'], "segmentation_model.pt"))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Load semantic segmentation UNet model
+channels = [32, 64, 128, 256, 512]
+model = UNet(in_channels=3, out_channels=1, channels=channels, bilinear=True, use_batchnorm=True)
+model_path = os.path.join(app.config['MODELS'], "U-NET_seg.pt")
+if os.path.exists(model_path):
+    try:
+        state = torch.load(model_path, map_location=device)
+        # support both state dict and checkpoint formats
+        if isinstance(state, dict) and 'state_dict' in state:
+            state = state['state_dict']
+        model.load_state_dict(state)
+    except Exception as e:
+        print(f"Warning: could not load UNet weights: {e}")
+else:
+    print(f"Warning: UNet model file not found at {model_path}")
+
+model = model.to(device)
+model.eval()
 
 def cleanup_upload_folder():
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -192,37 +210,91 @@ def segment_image():
     try:
         data = request.json
         image_path = data['image_path']
-
-        # Load the image
+        # Load the image file (support urls pointing to /static/...)
         if image_path.startswith("http"):
             image_path = image_path.split("/static/")[-1]
             image_path = os.path.join("static", image_path)
 
-        confidence = data.get('confidence', 0.75)
+        if not os.path.exists(image_path):
+            return jsonify({'success': False, 'message': 'Image file not found'}), 404
+
         smooth = data.get('smooth', 0.0005)
 
-        # Perform inference
-        results = model.predict(image_path, device=device, max_det=1, conf=confidence, save = False, verbose=False)
+        # Read image with PIL and apply EXIF orientation, then prepare a 512x512 letterboxed tensor for the model
+        pil_img = Image.open(image_path)
+        pil_img = ImageOps.exif_transpose(pil_img).convert('RGB')
+        orig_w, orig_h = pil_img.size
 
+        # Debug: print sizes to help diagnose orientation/rotation issues
+        print(f"segment_image: orig size: {orig_w}x{orig_h}")
+
+        # Target model input size
+        target_side = 512
+
+        # Compute scale and new size preserving aspect ratio
+        scale = min(target_side / float(orig_w), target_side / float(orig_h))
+        new_w = max(1, int(round(orig_w * scale)))
+        new_h = max(1, int(round(orig_h * scale)))
+
+        # Resize and letterbox (pad) to exactly target_side x target_side
+        resized = pil_img.resize((new_w, new_h), Image.LANCZOS)
+        letterbox_img = Image.new('RGB', (target_side, target_side), (0, 0, 0))
+        offset_x = (target_side - new_w) // 2
+        offset_y = (target_side - new_h) // 2
+        letterbox_img.paste(resized, (offset_x, offset_y))
+
+        img_np = np.array(letterbox_img)
+        # Normalize to [0,1] and convert to CHW
+        input_tensor = torch.from_numpy(img_np).permute(2, 0, 1).unsqueeze(0).float() / 255.0
+        input_tensor = input_tensor.to(device)
+
+        with torch.no_grad():
+            out = model(input_tensor)
+            # model may return tensor or tuple
+            if isinstance(out, (tuple, list)):
+                out = out[0]
+            # out expected shape: [1, 1, H, W]
+            probs = torch.sigmoid(out)
+            mask = probs[0, 0].cpu().numpy()
+
+        # Ensure mask has the expected target size (H, W)
+        # Resize mask to target_side if needed
+        if mask.shape[0] != target_side or mask.shape[1] != target_side:
+            mask = cv2.resize(mask, (target_side, target_side), interpolation=cv2.INTER_LINEAR)
+
+        # Binarize mask
+        mask_uint8 = (mask > 0.5).astype(np.uint8) * 255
+
+        # Find contours in the 512x512 space
+        contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            return jsonify({'success': True, 'polygons': []})
+
+        # Choose the largest contour by area
+        largest = max(contours, key=cv2.contourArea)
+        # Approximate polygon using smoothness parameter (in model space)
+        epsilon = float(smooth) * cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+
+        # Map polygon points from 512x512 letterbox space back to original image coordinates
         polygons = []
-        # Extract segmentation coordinates
-        for result in results:
-            for c in result:
-                # Extract the polygon coordinates
-                polygons = c.masks.xy[0].astype(int).tolist()
-                
-                # Convert to numpy array for OpenCV
-                poly_np = np.array(polygons, dtype=np.int32)
-                # Calculate epsilon (the approximation accuracy)
-                epsilon = smooth * cv2.arcLength(poly_np, True)
-                approx = cv2.approxPolyDP(poly_np, epsilon, True)
-                # Convert back to list of [x, y]
-                polygons = approx.reshape(-1, 2).tolist()
-                torch.cuda.empty_cache()
-        
-        if not polygons:
-                    return jsonify({'success': True, 'polygons': []})
-        
+        for pt in approx.reshape(-1, 2):
+            x512, y512 = int(pt[0]), int(pt[1])
+            # Remove letterbox offset
+            x_unpad = x512 - offset_x
+            y_unpad = y512 - offset_y
+            # Clamp to resized image bounds
+            x_unpad = max(0, min(x_unpad, new_w - 1))
+            y_unpad = max(0, min(y_unpad, new_h - 1))
+            # Scale back to original image size
+            orig_x = int(round(x_unpad / scale)) if scale > 0 else int(round(x_unpad))
+            orig_y = int(round(y_unpad / scale)) if scale > 0 else int(round(y_unpad))
+            # Clamp to original image bounds
+            orig_x = max(0, min(orig_x, orig_w - 1))
+            orig_y = max(0, min(orig_y, orig_h - 1))
+            polygons.append([int(orig_x), int(orig_y)])
+
         return jsonify({'success': True, 'polygons': polygons})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
