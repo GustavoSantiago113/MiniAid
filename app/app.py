@@ -3,7 +3,7 @@ from io import BytesIO
 import shutil
 from flask import Flask, request, render_template, jsonify, send_file
 import os
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 import numpy as np
 from utils import utils
 import cv2
@@ -528,6 +528,9 @@ def save_processed_image():
 
             img = img.resize((target_width, target_height), Image.LANCZOS)
         
+        # Apply sharpening filter before saving
+        img = img.filter(ImageFilter.SHARPEN)
+
         # Save to BytesIO
         output = BytesIO()
         img.save(output, format='PNG')
