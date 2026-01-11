@@ -455,17 +455,29 @@ def download_point_cloud():
 @app.route("/download-mesh-point-cloud", methods=["GET"])
 def download_mesh_point_cloud():
     try:
+        mesh_path = os.path.join(app.config['UPLOAD_FOLDER'], "ReconstructionMesh.ply")
+
+        if not os.path.exists(mesh_path):
+            return jsonify({"success": False, "message": "Mesh file not found. Please generate the mesh first."}), 404
+
+        return send_file(mesh_path, as_attachment=True, download_name="ReconstructionMesh.ply")
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/generate-mesh", methods=["POST"])
+def generate_mesh():
+    try:
         ply_path = os.path.join(app.config['UPLOAD_FOLDER'], "Reconstruction.ply")
         mesh_path = os.path.join(app.config['UPLOAD_FOLDER'], "ReconstructionMesh.ply")
 
         if not os.path.exists(ply_path):
             return jsonify({"success": False, "message": "Point cloud file not found"}), 404
 
-        # Call the utility function for Poisson reconstruction
+        # Call the utility function for Poisson reconstruction with enhanced processing
         utils.poisson_reconstruction_from_point_cloud(
             input_file=ply_path,
             output_mesh_file=mesh_path,
-            depth=10, 
+            depth=15,  # Higher depth for more detail
             width=0,
             scale=1.1,
             linear_fit=False
@@ -474,7 +486,7 @@ def download_mesh_point_cloud():
         if not os.path.exists(mesh_path):
             return jsonify({"success": False, "message": "Mesh file not created"}), 500
 
-        return send_file(mesh_path, as_attachment=True, download_name="ReconstructionMesh.ply")
+        return jsonify({"success": True, "message": "Mesh generated successfully"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 

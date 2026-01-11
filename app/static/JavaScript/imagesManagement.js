@@ -10,7 +10,7 @@ async function sendImageToFrames(){
         const files = fileInput.files;
 
         if (!files || files.length === 0) {
-            alert('Please select at least one file.');
+            notificationSystem.warning('Please select at least one file.');
             return;
         }
 
@@ -28,14 +28,14 @@ async function sendImageToFrames(){
             if (data.success) {
                 window.location.href = `/post-painting-frames`;        
             } else {
-                alert(data.error);
+                notificationSystem.error(data.error);
             }
         }).catch(error => {
             console.error("Error:", error);
-            alert("Something went wrong.");
+            notificationSystem.error("Something went wrong.");
         });
     } catch(error){
-        alert("An error occurred while uploading the images.");
+        notificationSystem.error("An error occurred while uploading the images.");
     } finally{
         button.innerHTML = originalText;
         button.disabled = false;
@@ -63,16 +63,19 @@ async function sendMoreImageToFrames(){
 
     if (response.ok) {
         // Reload the page to show new images in the list
-        window.location.reload();
+        notificationSystem.success('Images uploaded successfully!');
+        setTimeout(() => window.location.reload(), 1000);
     } else {
-        alert('Failed to upload images.');
+        notificationSystem.error('Failed to upload images.');
     }
 }
 
 async function deleteAllImages() {
-    if (!confirm("Are you sure you want to delete all images? This action cannot be undone.")) {
-        return;
-    }
+    // Create custom confirmation
+    const confirmed = confirm("Are you sure you want to delete all images? This action cannot be undone.");
+    if (!confirmed) return;
+
+    const loadingNotif = notificationSystem.loading('Deleting images...');
 
     try {
         const response = await fetch('/delete-all-images', {
@@ -81,14 +84,14 @@ async function deleteAllImages() {
 
         const data = await response.json();
         if (response.ok) {
-            alert(data.message);
+            notificationSystem.updateLoading(loadingNotif, data.message, 'success');
             // Optionally reload the page to reflect changes
-            window.location.reload();
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert(data.message || "Failed to delete images.");
+            notificationSystem.updateLoading(loadingNotif, data.message || "Failed to delete images.", 'error');
         }
     } catch (error) {
-        alert("An error occurred while deleting the images.");
+        notificationSystem.updateLoading(loadingNotif, "An error occurred while deleting the images.", 'error');
         console.error(error);
     }
 }

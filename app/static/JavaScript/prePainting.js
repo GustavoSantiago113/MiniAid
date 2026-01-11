@@ -11,7 +11,7 @@ async function sendImageToCrop(){
         const file = fileInput.files[0];
 
         if (!file) {
-            alert('Please select a file.');
+            notificationSystem.warning('Please select a file.');
             return;
         }
 
@@ -27,14 +27,14 @@ async function sendImageToCrop(){
             if (data.success) {
                 window.location.href = `/pre-painting-crop?filename=${data.filename}`;        
             } else {
-                alert(data.error);
+                notificationSystem.error(data.error);
             }
         }).catch(error => {
             console.error("Error:", error);
-            alert("Something went wrong.");
+            notificationSystem.error("Something went wrong.");
         });
     } catch(error){
-        alert("An error occurred while uploading the image.");
+        notificationSystem.error("An error occurred while uploading the image.");
     } finally{
         button.innerHTML = originalText;
         button.disabled = false;
@@ -67,14 +67,14 @@ async function sendCroppedImage(cropper, filename){
                 if (data.success) {
                     window.location.href = `/pre-painting-colors?croppedFileName=${data.croppedFileName}&originalFileName=${data.originalFileName}`;
                 } else {
-                    alert('Failed to crop image.');
+                    notificationSystem.error('Failed to crop image.');
                 }
             }).catch(error => {
                 console.error("Error:", error);
-                alert("Something went wrong.");
+                notificationSystem.error("Something went wrong.");
             });
     } catch(error){
-        alert("An error occurred while uploading the image.");
+        notificationSystem.error("An error occurred while uploading the image.");
     } finally{
         button.innerHTML = originalText;
         button.disabled = false;
@@ -91,7 +91,7 @@ async function collorPalletMake(){
     const selectedColor = colorPicker.value;
 
     if (partText === "") {
-        alert("Please enter a part name.");
+        notificationSystem.warning("Please enter a part name.");
         return;
     }
 
@@ -203,11 +203,11 @@ async function generatePDF(croppedFilename) {
             a.click();
             window.URL.revokeObjectURL(url);
         } else {
-            alert("Failed to generate PDF.");
+            notificationSystem.error("Failed to generate PDF.");
         }
     } catch (error) {
         console.error("Error exporting PDF:", error);
-        alert("An error occurred while exporting the PDF.");
+        notificationSystem.error("An error occurred while exporting the PDF.");
     } finally {
         button.innerHTML = originalText;
         button.disabled = false;

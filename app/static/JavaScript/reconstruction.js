@@ -43,8 +43,6 @@ async function openReconstructionModal() {
 
 async function updateVisualization() {
     const confidenceSlider = document.getElementById("pointCloudConfidenceSlider");
-    const filterSkyCheckbox = document.getElementById("filterSkyCheckbox");
-    const filterBlackBackgroundCheckbox = document.getElementById("filterBlackBackgroundCheckbox");
 
     const loader = document.getElementById("loader-container");
     const container = document.getElementById("pointCloudScene");
@@ -59,8 +57,8 @@ async function updateVisualization() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 confidence: confidenceSlider.value,
-                filterSky: filterSkyCheckbox.checked,
-                filterBlackBackground: filterBlackBackgroundCheckbox.checked,
+                filterSky: true,  // Always enabled
+                filterBlackBackground: true,  // Always enabled
             }),
         });
 
@@ -107,11 +105,11 @@ async function downloadPointCloud() {
             window.URL.revokeObjectURL(url);
         } else {
             const errorData = await response.json();
-            alert(`Failed to download point cloud: ${errorData.message || 'Unknown error'}`);
+            notificationSystem.error(`Failed to download point cloud: ${errorData.message || 'Unknown error'}`);
         }
     } catch (error) {
         console.error("Error downloading point cloud:", error);
-        alert("An error occurred while downloading the point cloud.");
+        notificationSystem.error("An error occurred while downloading the point cloud.");
     } finally {
         button.disabled = false;
         button.innerHTML = originalText;
@@ -507,8 +505,11 @@ async function downloadMeshPointCloud() {
     if (!button) return;
 
     const originalText = button.innerHTML;
-    button.innerHTML = '<span class="loader"></span>';
+    button.innerHTML = '<span class="loader"></span> Downloading...';
     button.disabled = true;
+
+    // Lock all controls during mesh download
+    lockReconstructionControls(true);
 
     try {
         const response = await fetch('/download-mesh-point-cloud', {
@@ -525,15 +526,179 @@ async function downloadMeshPointCloud() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
+            
+            // Show success message briefly
+            button.innerHTML = '✅ Downloaded!';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+            }, 2000);
         } else {
             const errorData = await response.json();
-            alert(`Failed to download mesh: ${errorData.message || 'Unknown error'}`);
+            notificationSystem.error(`Failed to download mesh: ${errorData.message || 'Unknown error'}`);
         }
     } catch (error) {
         console.error("Error downloading mesh:", error);
-        alert("An error occurred while downloading the mesh.");
+        notificationSystem.error("An error occurred while downloading the mesh.");
+    } finally {
+        setTimeout(() => {
+            button.disabled = false;
+            if (button.innerHTML.includes('Downloading')) {
+                button.innerHTML = originalText;
+            }
+        }, 2000);
+        lockReconstructionControls(false);
+    }
+}
+
+async function generateAndViewMesh() {
+    const button = document.getElementById("generateMeshPC");
+    const downloadButton = document.getElementById("downloadMeshPC");
+    if (!button) return;
+
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loader"></span> Generating Mesh...';
+    button.disabled = true;
+
+    // Lock all controls during mesh generation
+    lockReconstructionControls(true);
+
+    const loader = document.getElementById("loader-container");
+    const container = document.getElementById("pointCloudScene");
+
+    // Show loader
+    loader.style.display = "flex";
+    container.style.display = "none";
+
+    try {
+        const response = await fetch('/generate-mesh', {
+            method: 'POST',
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Load and display the mesh
+                loadMesh();
+                // Show the download mesh button
+                downloadButton.style.display = "inline-block";
+                // Update button text
+                button.innerHTML = 'Regenerate Mesh';
+            } else {
+                notificationSystem.error(`Failed to generate mesh: ${data.message || 'Unknown error'}`);
+                loader.style.display = "none";
+                container.style.display = "block";
+            }
+        } else {
+            const errorData = await response.json();
+            notificationSystem.error(`Failed to generate mesh: ${errorData.message || 'Unknown error'}`);
+            loader.style.display = "none";
+            container.style.display = "block";
+        }
+    } catch (error) {
+        console.error("Error generating mesh:", error);
+        notificationSystem.error("An error occurred while generating the mesh.");
+        loader.style.display = "none";
+        container.style.display = "block";
     } finally {
         button.disabled = false;
-        button.innerHTML = originalText;
+        if (button.innerHTML.includes('Generating')) {
+            button.innerHTML = originalText;
+        }
+        lockReconstructionControls(false);
     }
+}
+
+function lockReconstructionControls(lock) {
+    // Lock/unlock all interactive controls
+    const controlIds = [
+        'pointCloudConfidenceSlider',
+        'selectionRadiusSlider',
+        'reRunPC',
+        'downloadPC',
+        'generateMeshPC',
+        'downloadMeshPC',
+        'deleteSelectedPC',
+        'clearSelectionPC'
+    ];
+
+    controlIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.disabled = lock;
+            if (lock) {
+                element.style.opacity = '0.5';
+                element.style.pointerEvents = 'none';
+            } else {
+                element.style.opacity = '1';
+                element.style.pointerEvents = 'auto';
+            }
+        }
+    });
+}
+
+function loadMesh() {
+    const container = document.getElementById("pointCloudScene");
+    const loader = document.getElementById("loader-container");
+    
+    if (typeof vtk === "undefined") {
+        console.error("VTK.js not loaded");
+        container.innerHTML = '<div style="color: #dc3545; padding:20px; text-align:center;">VTK.js not loaded</div>';
+        return;
+    }
+
+    if (loader) loader.style.display = 'none';
+
+    container.innerHTML = '';
+    if (vtkRendererInstance) {
+        try { vtkRendererInstance.delete(); } catch (e) { console.warn("Error destroying previous VTK instance:", e); }
+        vtkRendererInstance = null;
+    }
+
+    container.style.display = 'block';
+    container.style.height = '600px';
+
+    const meshFileUrl = `static/uploads/ReconstructionMesh.ply?v=${Date.now()}`;
+    fetch(meshFileUrl)
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+        .then(buffer => {
+            const fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+                rootContainer: container,
+                background: [0.9, 0.9, 0.9],
+                containerStyle: { width: "100%", height: "600px", position: "relative" },
+            });
+            vtkRendererInstance = fullScreenRenderer;
+
+            const renderer = fullScreenRenderer.getRenderer();
+            const renderWindow = fullScreenRenderer.getRenderWindow();
+
+            // Pipeline
+            const reader = vtk.IO.Geometry.vtkPLYReader.newInstance();
+            const mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+            const actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+            actor.setMapper(mapper);
+            mapper.setInputConnection(reader.getOutputPort());
+            // Render as surface for mesh
+            actor.getProperty().setRepresentationToSurface();
+            actor.getProperty().setInterpolationToPhong();
+
+            reader.parseAsArrayBuffer(buffer);
+
+            renderer.addActor(actor);
+            renderer.resetCamera();
+            renderWindow.render();
+
+            // Clear point cloud state since we're now showing a mesh
+            pcState.polyData = null;
+            pcState.renderer = null;
+            pcState.renderWindow = null;
+            pcState.picker = null;
+            pcState.selected.clear();
+            pcState.baseColors = null;
+            pcState.scalars = null;
+        })
+        .catch(err => {
+            console.error('Failed to load mesh:', err);
+            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load mesh</div>';
+        });
 }

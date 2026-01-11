@@ -4,6 +4,7 @@
         <title>MiniAid</title>
         <link rel="stylesheet" type="text/css" href="../static/styles.css">
         <link rel="icon" type="image/x-icon" href="../static/favico.png">
+        <script src="../static/JavaScript/notifications.js"></script>
         <script src="../static/JavaScript/imagesManagement.js"></script>
         <script src="../static/JavaScript/segmentation.js"></script>
         <script src="https://unpkg.com/vtk.js"></script>
@@ -78,21 +79,19 @@
                 <div>
                     <span class="close">&times;</span>
 
-                    <div id="post-segment-text" style="text-align: center; margin-bottom: 25px;">
-                        <span>Re-arrange the points to improve the segmentation</span>
-                        <br>
-                        <span>Use mouse wheel to zoom and SHIFT+mouse to move</span>
+                    <div id="post-segment-text" style="text-align: center; margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--buttons-footer);">
+                        <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 8px; color: var(--buttons-footer);">✏️ Segmentation Controls</div>
+                        <span style="display: block; margin-bottom: 5px;">🔹 Re-arrange the points to improve the segmentation</span>
+                        <span style="color: #666; font-size: 0.9em;">🖱️ Mouse wheel to zoom • SHIFT + Mouse to move</span>
                     </div>
 
                 </div>
 
-                <div class = "post-process-controls" id="postSegmentationControls" style="gap: 15px;">
-                    
-                    <div id="imageContainer">
-
+                <div class = "post-process-controls" id="postSegmentationControls" style="gap: 15px; height: 70vh;">
+                    <div id="imageContainer" style="flex: 0 0 50%; min-width: 0; min-height: 0; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <!-- Canvas will be injected here -->
                     </div>
-                    
-                    <div class = "controls-buttons">
+                    <div class = "controls-buttons" style="flex: 1 1 50%; min-width: 0; min-height: 0; height: 100%;">
                         <!-- segmentation confidence removed: using semantic UNet model -->
                         <div class="slider-container">
                             <label for="smooth">Counter smoothness:</label>
@@ -151,13 +150,11 @@
                     </div>
                 </div>
 
-                <div class = "post-process-controls" id="blackPointControls">
-
-                    <div class="image-container">
+                <div class = "post-process-controls" id="blackPointControls" style="height: 60vh;">
+                    <div class="image-container" style="flex: 0 0 50%; min-width: 0; min-height: 0; height: 100%; display: flex; align-items: center; justify-content: center;">
                         <img id="blackPointImage" src="" alt="Selected image" style="object-fit: contain; height: 100%; width: 100%;">
                     </div>
-                    
-                    <div class = "controls-buttons">
+                    <div class = "controls-buttons" style="flex: 1 1 50%; min-width: 0; min-height: 0; height: 100%;">
                         <div class="slider-container">
                             <label for="blackPointSlider">Black Point:</label>
                             <input type="range" id="blackPointSlider" min="0" max="100" value="20" step="1" class="slider">
@@ -204,36 +201,41 @@
             <div class="modal-content">
                 <div>
                     <span class="close">&times;</span>
-                    <div style="text-align: center; margin-bottom: 25px;">
-                        <span>Point Cloud Generation</span>
+                    <div style="text-align: center; margin-bottom: 25px; padding: 20px; background: linear-gradient(135deg, #297373 0%, #41B4B4 100%); border-radius: 10px; color: white;">
+                        <h2 style="margin: 0; font-size: 1.8em; font-weight: 600;">🎨 3D Reconstruction</h2>
+                        <p style="margin: 8px 0 0 0; font-size: 0.9em; opacity: 0.95;">Generate and visualize your 3D model</p>
                     </div>
-                    <div id="reconstructionStatus" style="display:none; text-align:center;">
+                    <div id="reconstructionStatus" style="display:none; text-align:center; padding: 30px; background: #f8f9fa; border-radius: 10px; margin-bottom: 20px;">
                         <div class="loader"></div>
                         <div id="reconstructionMessage">Starting reconstruction...</div>
                     </div>
                     <div id="pointCloud" style="display:none;">
-                        <div class = "post-process-controls" id="reconstructionControls" style="gap: 15px;">
-                             <div class="controls-buttons" style="display:flex; gap:10px; align-items:center;">
-                                <div style="margin-bottom:10px; text-align:center;">
-                                    <strong>Point Cloud Cleaning:</strong><br>
-                                    <span style="font-size: 0.7rem;">
-                                        Hold <b>right mouse button</b> and hover over points to select.<br>
-                                        Use the slider below to adjust selection radius.<br>
-                                        Use the buttons to delete or clear selected points.
-                                    </span>
+                            <div class = "post-process-controls" id="reconstructionControls" style="gap: 15px; height: 70vh;">
+                                <div style="flex: 1 1 30%; min-width: 0; min-height: 0; height: 100%;"></div>
+                                <div class="image-container" id="pointCloudScene" style="flex: 0 0 40%; min-width: 0; min-height: 0; height: 100%; display: block;"></div>
+                                <div class="controls-buttons" style="flex: 1 1 30%; min-width: 0; min-height: 0; height: 100%; display:flex; gap:15px; align-items:center; flex-direction:column;">
+                                <div style="margin-bottom:15px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border-left: 4px solid var(--buttons-footer); width: 100%; box-sizing: border-box;">
+                                    <div style="font-size: 1.2em; font-weight: 600; margin-bottom: 12px; color: var(--buttons-footer);">🧹 Point Cloud Cleaning</div>
+                                    <div style="font-size: 0.9em; line-height: 1.6; color: #495057;">
+                                        <div style="margin-bottom: 8px;">🖱️ <b>Right mouse button</b> + hover to select points</div>
+                                        <div style="margin-bottom: 8px;">🎯 Use slider below to adjust selection radius</div>
+                                        <div>🗑️ Use buttons to delete or clear selection</div>
+                                    </div>
                                 </div>
+                                <div style="width: 100%; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
                                 <div class="slider-container" style="margin-bottom:10px;">
                                     <label for="selectionRadiusSlider">Selection Radius:</label>
                                     <input type="range" id="selectionRadiusSlider" min="0.01" max="0.2" value="0.05" step="0.01" class="slider">
                                     <span id="selectionRadiusValue">0.05</span>
                                 </div>
-                                <button id="deleteSelectedPC" class="action-button">Delete Selected</button>
-                                <button id="clearSelectionPC" class="action-button">Clear Selection</button>
+                                <button id="deleteSelectedPC" class="action-button" style="flex: 1; min-width: 140px;">🗑️ Delete Selected</button>
+                                <button id="clearSelectionPC" class="action-button" style="flex: 1; min-width: 140px;">✨ Clear Selection</button>
+                                </div>
                             </div>
                             <div id="loader-container" style="display:flex; justify-content:center; align-items:center; height:80px;">
                                 <div class="loader"></div>
                             </div>
-                            <div class="image-container" id="pointCloudScene" style="width:100%; height:600px; display:block;"></div>
+                            <div class="image-container" id="pointCloudScene" style="width:900px; max-width:100vw; height:600px; display:block;"></div>
                             
                             <div class = "controls-buttons">
                                 <div class="slider-container">
@@ -242,29 +244,18 @@
                                     <span id="pointCloudConfidenceValue">50%</span>
                                 </div>
 
-                                <div class="checkbox-group">
-                                <label class="checkbox-container">
-                                    <input type="checkbox" id="filterSkyCheckbox" value="Filter Sky" checked />
-                                    Filter Sky
-                                </label>
-                                <label class="checkbox-container">
-                                    <input type="checkbox" id="filterBlackBackgroundCheckbox" value="Filter Black Background" checked />
-                                    Filter Black Background
-                                </label>
-                            </div>
-
-                                <div class = "adjustment-buttons">
-                                    <div class = "action-button" id="reRunPC">
-                                        <!-- <img src="../static/icons/reRun.png" class="button-icon"> -->
-                                        Update View
+                                <div class = "adjustment-buttons" style="gap: 12px;">
+                                    <div class = "action-button" id="reRunPC" style="background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                        🔄 Update View
                                     </div>
-                                    <div class = "action-button" id="downloadPC">
-                                        <!-- <img src="../static/icons/download.png" class="button-icon"> -->
-                                        Download Point Cloud
+                                    <div class = "action-button" id="downloadPC" style="background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                        💾 Download Point Cloud
                                     </div>
-                                    <div class="action-button" id="downloadMeshPC">
-                                        <!-- <img src="../static/icons/download.png" class="button-icon"> -->
-                                        Download Mesh
+                                    <div class="action-button" id="generateMeshPC" style="background: linear-gradient(135deg, #41B4B4 0%, #4ac5c5 100%); box-shadow: 0 4px 6px rgba(65, 180, 180, 0.3); font-weight: 600;">
+                                        ✨ Generate and View Mesh
+                                    </div>
+                                    <div class="action-button" id="downloadMeshPC" style="display:none; background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                        📥 Download Mesh
                                     </div>
                                 </div>
                             </div>
@@ -344,6 +335,10 @@
 
         document.getElementById("downloadPC").addEventListener("click", function() {
             downloadPointCloud();
+        });
+
+        document.getElementById('generateMeshPC').addEventListener('click', function() {
+            generateAndViewMesh();
         });
 
         document.getElementById('downloadMeshPC').addEventListener('click', function() {
