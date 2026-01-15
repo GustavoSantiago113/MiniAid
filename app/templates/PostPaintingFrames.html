@@ -93,7 +93,7 @@
                     </div>
                     <div class = "controls-buttons" style="flex: 1 1 50%; min-width: 0; min-height: 0; height: 100%;">
                         <!-- segmentation confidence removed: using semantic UNet model -->
-                        <div class="slider-container">
+                        <div class="select-container">
                             <label for="smooth">Counter smoothness:</label>
                             <select id="segSmooth" class="custom-select">
                                 <option value="low">Low</option>
@@ -110,7 +110,7 @@
                             
                             <div style="margin-bottom: 10px;">
                                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Target Size (px):</label>
-                                <div style="display: flex; gap: 10px;">
+                                <div style="display: flex; gap: 10px; flex-direction: column;">
                                     <input type="number" id="segmentationWidth" placeholder="Width" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                     <input type="number" id="segmentationHeight" placeholder="Height" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 </div>
@@ -169,7 +169,7 @@
                             
                             <div style="margin-bottom: 10px;">
                                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Target Size (px):</label>
-                                <div style="display: flex; gap: 10px;">
+                                <div style="display: flex; gap: 10px; flex-direction: column;">
                                     <input type="number" id="blackPointWidth" placeholder="Width" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                     <input type="number" id="blackPointHeight" placeholder="Height" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 </div>
@@ -210,56 +210,55 @@
                         <div id="reconstructionMessage">Starting reconstruction...</div>
                     </div>
                     <div id="pointCloud" style="display:none;">
-                            <div class = "post-process-controls" id="reconstructionControls" style="gap: 15px; height: 70vh;">
-                                <div style="flex: 1 1 30%; min-width: 0; min-height: 0; height: 100%;"></div>
-                                <div class="image-container" id="pointCloudScene" style="flex: 0 0 40%; min-width: 0; min-height: 0; height: 100%; display: block;"></div>
-                                <div class="controls-buttons" style="flex: 1 1 30%; min-width: 0; min-height: 0; height: 100%; display:flex; gap:15px; align-items:center; flex-direction:column;">
-                                <div style="margin-bottom:15px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border-left: 4px solid var(--buttons-footer); width: 100%; box-sizing: border-box;">
-                                    <div style="font-size: 1.2em; font-weight: 600; margin-bottom: 12px; color: var(--buttons-footer);">🧹 Point Cloud Cleaning</div>
-                                    <div style="font-size: 0.9em; line-height: 1.6; color: #495057;">
-                                        <div style="margin-bottom: 8px;">🖱️ <b>Right mouse button</b> + hover to select points</div>
-                                        <div style="margin-bottom: 8px;">🎯 Use slider below to adjust selection radius</div>
-                                        <div>🗑️ Use buttons to delete or clear selection</div>
+                        <div id="loader-container" style="display:flex; justify-content:center; align-items:center; height:80px; margin-bottom: 20px;">
+                            <div class="loader"></div>
+                        </div>
+                        
+                        <div class="post-process-controls" id="reconstructionControls">
+                            <div class="image-container" id="pointCloudScene"></div>
+                            
+                            <div class="controls-buttons">
+                                <div class="cleaning-section">
+                                    <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 12px; color: var(--buttons-footer);">🧹 Point Cloud Cleaning</div>
+                                    <div style="font-size: 0.85em; line-height: 1.5; color: #495057; margin-bottom: 15px;">
+                                        <div style="margin-bottom: 5px;">🖱️ <b>Right mouse</b> + hover to select</div>
+                                        <div style="margin-bottom: 5px;">🎯 Adjust selection radius below</div>
+                                        <div>🗑️ Delete or clear selection</div>
+                                    </div>
+                                    
+                                    <div class="slider-container">
+                                        <label for="selectionRadiusSlider">Selection Radius:</label>
+                                        <input type="range" id="selectionRadiusSlider" min="0.01" max="0.2" value="0.05" step="0.01" class="slider">
+                                        <span id="selectionRadiusValue">0.05</span>
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                        <button id="deleteSelectedPC" class="action-button" style="flex: 1;">🗑️ Delete</button>
+                                        <button id="clearSelectionPC" class="action-button" style="flex: 1;">✨ Clear</button>
                                     </div>
                                 </div>
-                                <div style="width: 100%; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                                <div class="slider-container" style="margin-bottom:10px;">
-                                    <label for="selectionRadiusSlider">Selection Radius:</label>
-                                    <input type="range" id="selectionRadiusSlider" min="0.01" max="0.2" value="0.05" step="0.01" class="slider">
-                                    <span id="selectionRadiusValue">0.05</span>
-                                </div>
-                                <button id="deleteSelectedPC" class="action-button" style="flex: 1; min-width: 140px;">🗑️ Delete Selected</button>
-                                <button id="clearSelectionPC" class="action-button" style="flex: 1; min-width: 140px;">✨ Clear Selection</button>
-                                </div>
-                            </div>
-                            <div id="loader-container" style="display:flex; justify-content:center; align-items:center; height:80px;">
-                                <div class="loader"></div>
-                            </div>
-                            <div class="image-container" id="pointCloudScene" style="width:900px; max-width:100vw; height:600px; display:block;"></div>
-                            
-                            <div class = "controls-buttons">
+                                
                                 <div class="slider-container">
                                     <label for="pointCloudConfidenceSlider">Confidence:</label>
                                     <input type="range" id="pointCloudConfidenceSlider" min="0" max="100" value="50" step="1" class="slider">
                                     <span id="pointCloudConfidenceValue">50%</span>
                                 </div>
 
-                                <div class = "adjustment-buttons" style="gap: 12px;">
-                                    <div class = "action-button" id="reRunPC" style="background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                <div class="adjustment-buttons">
+                                    <div class="action-button" id="reRunPC">
                                         🔄 Update View
                                     </div>
-                                    <div class = "action-button" id="downloadPC" style="background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                    <div class="action-button" id="downloadPC">
                                         💾 Download Point Cloud
                                     </div>
-                                    <div class="action-button" id="generateMeshPC" style="background: linear-gradient(135deg, #41B4B4 0%, #4ac5c5 100%); box-shadow: 0 4px 6px rgba(65, 180, 180, 0.3); font-weight: 600;">
+                                    <div class="action-button" id="generateMeshPC">
                                         ✨ Generate and View Mesh
                                     </div>
-                                    <div class="action-button" id="downloadMeshPC" style="display:none; background: linear-gradient(135deg, #297373 0%, #2a7d7d 100%); box-shadow: 0 4px 6px rgba(41, 115, 115, 0.2);">
+                                    <div class="action-button" id="downloadMeshPC" style="display:none;">
                                         📥 Download Mesh
                                     </div>
                                 </div>
                             </div>
-                            
                         </div>
                     </div>
                 </div>

@@ -417,7 +417,6 @@ input[type="number"] {
     padding: 12px 16px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
-    width: 23.889vw;
     font-family: inherit;
     font-size: 1rem;
     transition: all var(--transition-speed);
@@ -437,7 +436,7 @@ input[type="number"]:hover {
 }
 
 .edit-input{
-    width: 15vw
+    width: 15vw;
 }
 
 input[type="color"] {
@@ -652,6 +651,8 @@ input[type="color"] {
     display: flex;
     flex-direction: column;
     gap: 5.859vh;
+    padding-left: 50px;
+    padding-right: 50px;
 }
 
 .image-preview {
@@ -696,20 +697,19 @@ input[type="color"] {
 
 .modal-content {
     background: var(--background);
-    border-radius: 0;
-    width: 100vw;
-    min-width: 100vw;
-    max-width: 100vw;
-    height: 100vh;
-    min-height: 100vh;
-    max-height: 100vh;
+    border-radius: 16px;
+    width: 90vw;
+    max-width: 1200px;
+    height: auto;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow-y: auto;
-    overflow-x: auto;
-    padding: 0;
+    overflow-x: hidden;
+    padding: 25px;
     box-sizing: border-box;
+    margin: auto;
 }
 
 .close {
@@ -723,48 +723,45 @@ input[type="color"] {
 
 .post-process-controls{
     display: flex;
-    flex: 1 1 auto;
-    justify-content: space-around;
-    align-items: stretch;
-    gap: 24px;
-    min-height: 0;
-    height: 100%;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 30px;
+    min-height: 500px;
     box-sizing: border-box;
 }
 
 .image-container{
-    flex: 1 1 0;
-    min-height: 0;
-    min-width: 0;
-    height: 100%;
-    max-height: 100%;
-    max-width: 50vw;
+    flex: 0 0 auto;
+    min-height: 500px;
+    width: 600px;
+    max-width: 60%;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: auto;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    box-shadow: var(--shadow-md);
 }
 
 .controls-buttons{
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     justify-content: flex-start;
-    gap: 10px;
-    flex: 1 1 0;
-    min-height: 0;
-    height: 100%;
-    overflow-y: auto;
+    gap: 20px;
+    flex: 0 0 350px;
+    width: 350px;
     box-sizing: border-box;
-    padding-top: 32px;
-    padding-bottom: 32px;
 }
 
 .slider-container {
     display: flex;
     width: 100%;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
+    gap: 8px;
 }
 
 .slider {
@@ -806,9 +803,11 @@ input[type="color"] {
     justify-content: space-between;
     gap: 15px;
     flex-direction: column;
+    width: 100%;
 }
 
 .action-button {
+    width: 100%;
     padding: 14px 24px;
     border-radius: 8px;
     cursor: pointer;
@@ -818,6 +817,8 @@ input[type="color"] {
     font-size: 1.05em;
     border: none;
     color: white;
+    background: linear-gradient(135deg, var(--buttons-footer) 0%, #2a7d7d 100%);
+    box-shadow: var(--shadow-sm);
 }
 
 .action-button:hover:not(:disabled) {
@@ -834,12 +835,12 @@ input[type="color"] {
     filter: grayscale(30%);
 }
 
-.slider-container {
+.select-container {
     margin: 15px 0;
-    padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
     border: 1px solid #dee2e6;
+    padding: 32px;
 }
 
 .slider-container label {
@@ -1051,4 +1052,44 @@ hr {
 
 .footer-icon{
     height: 1.953vh;
+}
+
+/* Point Cloud Scene Specific Styling */
+#pointCloudScene {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    border-radius: 12px;
+}
+
+.cleaning-section {
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px;
+    border-left: 4px solid var(--buttons-footer);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80px;
+    margin: 20px 0;
+}
+
+#reconstructionStatus {
+    text-align: center;
+    padding: 30px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+#pointCloud {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
