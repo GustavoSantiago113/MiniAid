@@ -218,6 +218,18 @@
                             <div class="image-container" id="pointCloudScene"></div>
                             
                             <div class="controls-buttons">
+                                <div class="slider-container">
+                                    <label for="pointCloudConfidenceSlider">Confidence:</label>
+                                    <input type="range" id="pointCloudConfidenceSlider" min="0" max="100" value="50" step="1" class="slider">
+                                    <span id="pointCloudConfidenceValue">50%</span>
+                                </div>
+
+                                <div class="adjustment-buttons">
+                                    <div class="action-button" id="reRunPC">
+                                        🔄 Update View
+                                    </div>
+                                </div>
+
                                 <div class="cleaning-section">
                                     <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 12px; color: var(--buttons-footer);">🧹 Point Cloud Cleaning</div>
                                     <div style="font-size: 0.85em; line-height: 1.5; color: #495057; margin-bottom: 15px;">
@@ -237,17 +249,8 @@
                                         <button id="clearSelectionPC" class="action-button" style="flex: 1;">✨ Clear</button>
                                     </div>
                                 </div>
-                                
-                                <div class="slider-container">
-                                    <label for="pointCloudConfidenceSlider">Confidence:</label>
-                                    <input type="range" id="pointCloudConfidenceSlider" min="0" max="100" value="50" step="1" class="slider">
-                                    <span id="pointCloudConfidenceValue">50%</span>
-                                </div>
 
                                 <div class="adjustment-buttons">
-                                    <div class="action-button" id="reRunPC">
-                                        🔄 Update View
-                                    </div>
                                     <div class="action-button" id="downloadPC">
                                         💾 Download Point Cloud
                                     </div>
