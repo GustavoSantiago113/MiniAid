@@ -147,10 +147,8 @@ class NotificationSystem {
     }
 }
 
-// Create global instance
-const notificationSystem = new NotificationSystem();
-
-// Make it available globally
+// Create global instance and expose as a true global variable and window property
+var notificationSystem = new NotificationSystem();
 window.notificationSystem = notificationSystem;
 
 // Convenience global functions (optional - can use window.alert replacement)

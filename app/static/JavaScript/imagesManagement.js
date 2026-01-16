@@ -1,3 +1,18 @@
+// Helper accessor for notification system: prefer global `notificationSystem`, fallback to no-op
+const _notifFallback = {
+    show: () => {},
+    success: () => {},
+    error: () => {},
+    warning: () => {},
+    info: () => {},
+    loading: () => ({}),
+    updateLoading: () => {}
+};
+
+function notif() {
+    return (typeof window !== 'undefined' && window.notificationSystem) ? window.notificationSystem : _notifFallback;
+}
+
 async function sendImageToFrames(){
     const button = document.getElementById("uploadImage");
 
@@ -10,7 +25,7 @@ async function sendImageToFrames(){
         const files = fileInput.files;
 
         if (!files || files.length === 0) {
-            notificationSystem.warning('Please select at least one file.');
+            notif().warning('Please select at least one file.');
             return;
         }
 
@@ -27,15 +42,15 @@ async function sendImageToFrames(){
         .then(data => {
             if (data.success) {
                 window.location.href = `/post-painting-frames`;        
-            } else {
-                notificationSystem.error(data.error);
+                } else {
+                notif().error(data.error);
             }
         }).catch(error => {
             console.error("Error:", error);
-            notificationSystem.error("Something went wrong.");
+            notif().error("Something went wrong.");
         });
     } catch(error){
-        notificationSystem.error("An error occurred while uploading the images.");
+        notif().error("An error occurred while uploading the images.");
     } finally{
         button.innerHTML = originalText;
         button.disabled = false;
@@ -63,10 +78,10 @@ async function sendMoreImageToFrames(){
 
     if (response.ok) {
         // Reload the page to show new images in the list
-        notificationSystem.success('Images uploaded successfully!');
+        notif().success('Images uploaded successfully!');
         setTimeout(() => window.location.reload(), 1000);
     } else {
-        notificationSystem.error('Failed to upload images.');
+        notif().error('Failed to upload images.');
     }
 }
 
@@ -75,7 +90,7 @@ async function deleteAllImages() {
     const confirmed = confirm("Are you sure you want to delete all images? This action cannot be undone.");
     if (!confirmed) return;
 
-    const loadingNotif = notificationSystem.loading('Deleting images...');
+    const loadingNotif = notif().loading('Deleting images...');
 
     try {
         const response = await fetch('/delete-all-images', {
@@ -84,14 +99,14 @@ async function deleteAllImages() {
 
         const data = await response.json();
         if (response.ok) {
-            notificationSystem.updateLoading(loadingNotif, data.message, 'success');
+            notif().updateLoading(loadingNotif, data.message, 'success');
             // Optionally reload the page to reflect changes
             setTimeout(() => window.location.reload(), 1500);
         } else {
-            notificationSystem.updateLoading(loadingNotif, data.message || "Failed to delete images.", 'error');
+            notif().updateLoading(loadingNotif, data.message || "Failed to delete images.", 'error');
         }
     } catch (error) {
-        notificationSystem.updateLoading(loadingNotif, "An error occurred while deleting the images.", 'error');
+        notif().updateLoading(loadingNotif, "An error occurred while deleting the images.", 'error');
         console.error(error);
     }
 }
